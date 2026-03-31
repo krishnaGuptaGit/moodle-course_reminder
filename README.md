@@ -15,7 +15,7 @@ A Moodle local plugin that sends automated email reminders to managers when thei
 
 1. Copy the `course_reminder` folder into `local/` within your Moodle installation.
 2. Visit **Site administration > Notifications** to trigger the plugin installation.
-3. Configure the plugin under **Site administration > Plugins > Local plugins > Course escalation reminder**.
+3. Configure the plugin under **Site administration > Plugins > Local plugins > Course Escalation Reminder**.
 
 ## Configuration
 
