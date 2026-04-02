@@ -41,6 +41,8 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 **Template variables — Consolidated:** `{managername}`, `{employeelist}`, `{sitename}`
 
+> **HTML in templates:** Body fields accept HTML. Use standard anchor tags to add clickable links, e.g. `<a href="https://your-infohub-url">log in to the Infohub</a>`. Plain-text email clients automatically receive a tag-stripped fallback.
+
 ### Student Reminder
 
 | Setting | Description | Default |
@@ -53,6 +55,8 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 **Template variables — Individual:** `{coursename}`, `{username}`, `{days}`, `{sitename}`
 
 **Template variables — Consolidated:** `{username}`, `{courselist}`, `{days}`, `{sitename}`
+
+> **HTML in templates:** Body fields accept HTML. Use standard anchor tags to add clickable links, e.g. `<a href="https://your-infohub-url">log in to the Infohub</a>`. Plain-text email clients automatically receive a tag-stripped fallback.
 
 ## How It Works
 

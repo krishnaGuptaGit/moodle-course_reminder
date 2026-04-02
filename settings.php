@@ -92,7 +92,7 @@ This is an automated message from {sitename}.
 
 Best regards,
 Learning Management System',
-        PARAM_TEXT
+        PARAM_RAW
     ));
 
     $settings->add(new admin_setting_configtext(
@@ -119,7 +119,7 @@ This is an automated message from {sitename}.
 
 Best regards,
 Learning Management System',
-        PARAM_TEXT
+        PARAM_RAW
     ));
 
     // -------------------------------------------------------------------------
@@ -177,15 +177,19 @@ Learning Management System',
         get_string('student_emailbodyindividual_desc', 'local_course_reminder'),
         'Dear {username},
 
-This is a reminder that you have been enrolled in the course "{coursename}" for {days} days but have not yet completed it and we have not seen any recent activity from you.
+The following course requires your attention:
 
-Please log in and continue your training at your earliest convenience.
+{coursename}
 
-This is an automated message from {sitename}.
+The course is part of our employee training and awareness programme and contains important information relevant to your role.
+Please <a href="https://your-infohub-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course at the earliest to ensure timely compliance.
+If you have already completed the course, please ignore this message.
 
-Best regards,
-Learning Management System',
-        PARAM_TEXT
+For any access-related issues, you may contact the IT support team.
+
+Regards,
+LMS Administration Team',
+        PARAM_RAW
     ));
 
     $settings->add(new admin_setting_configtext(
@@ -206,12 +210,14 @@ The following courses require your attention:
 
 {courselist}
 
-Please log in and complete your training at your earliest convenience.
+Each course listed above is part of our employee training and awareness programme and contains important information relevant to your role.
+Please <a href="https://your-infohub-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course(s) at the earliest to ensure timely compliance.
+If you have already completed the course(s), please ignore this message.
 
-This is an automated message from {sitename}.
+For any access-related issues, you may contact the IT support team.
 
-Best regards,
-Learning Management System',
-        PARAM_TEXT
+Regards,
+LMS Administration Team',
+        PARAM_RAW
     ));
 }

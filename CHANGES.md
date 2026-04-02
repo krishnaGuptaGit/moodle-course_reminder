@@ -2,6 +2,19 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.3] - 2026-04-01
+
+### Added
+- **HTML email support** — all four email methods now send both a plain-text and an HTML body. HTML tags (e.g. `<a href="...">text</a>`) written in the body templates are rendered by the email client; plain-text clients receive a tag-stripped fallback.
+
+### Changed
+- Body textarea admin settings changed from `PARAM_TEXT` to `PARAM_RAW` so HTML content (links, tags) is accepted and saved without error.
+- Default student individual email body updated to match company branding, including an Infohub link placeholder and Infohub/LMS access instructions.
+- Default student consolidated email body updated:
+  - Singular/plural issue resolved — "The course is part of..." rewritten as "Each course listed above is part of..." to read correctly whether one or multiple courses are listed.
+  - "complete the course" and "completed the course" updated to "complete the course(s)" / "completed the course(s)".
+  - Infohub link placeholder added.
+
 ## [1.2] - 2025-07-26
 
 ### Changed

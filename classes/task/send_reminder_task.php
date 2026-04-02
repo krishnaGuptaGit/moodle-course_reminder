@@ -290,8 +290,8 @@ class send_reminder_task extends scheduled_task {
             $manageruser,
             $noreplyuser,
             $subject,
-            $message,
-            '',
+            strip_tags($message),
+            nl2br($message),
             '',
             true
         );
@@ -336,8 +336,8 @@ class send_reminder_task extends scheduled_task {
             $manageruser,
             $noreplyuser,
             $subject,
-            $message,
-            '',
+            strip_tags($message),
+            nl2br($message),
             '',
             true
         );
@@ -492,8 +492,8 @@ class send_reminder_task extends scheduled_task {
             $studentuser,
             $noreplyuser,
             $subject,
-            $message,
-            '',
+            strip_tags($message),
+            nl2br($message),
             '',
             true
         );
@@ -539,8 +539,8 @@ class send_reminder_task extends scheduled_task {
             $studentuser,
             $noreplyuser,
             $subject,
-            $message,
-            '',
+            strip_tags($message),
+            nl2br($message),
             '',
             true
         );
