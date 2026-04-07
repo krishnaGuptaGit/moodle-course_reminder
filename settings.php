@@ -198,7 +198,7 @@ The following course requires your attention:
 {coursename}
 
 The course is part of our employee training and awareness programme and contains important information relevant to your role.
-Please <a href="https://your-site-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course at the earliest to ensure timely compliance.
+Please log in to the <a href="#" target="_blank">LMS</a> and complete the course(s) at the earliest to ensure timely compliance.
 If you have already completed the course, please ignore this message.
 
 For any access-related issues, you may contact the IT support team.
@@ -227,7 +227,7 @@ The following courses require your attention:
 {courselist}
 
 Each course listed above is part of our employee training and awareness programme and contains important information relevant to your role.
-Please <a href="https://your-site-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course(s) at the earliest to ensure timely compliance.
+Please log in to the <a href="#" target="_blank">LMS</a> and complete the course(s) at the earliest to ensure timely compliance.
 If you have already completed the course(s), please ignore this message.
 
 For any access-related issues, you may contact the IT support team.

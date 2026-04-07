@@ -2,6 +2,11 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.4.7] - 2026-04-07
+
+### Changed
+- **Student email default templates made generic** — the default body for both student individual and student consolidated emails no longer contains organisation-specific text. The hardcoded Infohub URL and "click on LMS link in Useful Links section" instruction have been replaced with a neutral `<a href="#" target="_blank">LMS</a>` placeholder link. Admins should replace `#` with their actual LMS URL in the admin settings before enabling the plugin. Existing saved templates are not affected — this only changes what new installations see as the pre-filled default.
+
 ## [1.4.6] - 2026-04-07
 
 ### Fixed

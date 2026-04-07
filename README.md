@@ -44,7 +44,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 **Template variables — Consolidated:** `{managername}`, `{employeelist}`, `{sitename}`
 
-> **HTML in templates:** Body fields accept HTML. Use standard anchor tags to add clickable links, e.g. `<a href="https://your-site-url">log in</a>`. Plain-text email clients automatically receive a tag-stripped fallback.
+> **HTML in templates:** Body fields accept HTML. The default templates include a generic login link `<a href="#" target="_blank">LMS</a>` — replace `#` with your actual LMS URL before enabling the plugin. Plain-text email clients automatically receive a tag-stripped fallback.
 
 ### Student Reminder
 
@@ -62,7 +62,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 **Template variables — Consolidated:** `{username}`, `{courselist}`, `{days}`, `{sitename}`
 
-> **HTML in templates:** Body fields accept HTML. Use standard anchor tags to add clickable links, e.g. `<a href="https://your-site-url">log in</a>`. Plain-text email clients automatically receive a tag-stripped fallback.
+> **HTML in templates:** Body fields accept HTML. The default templates include a generic login link `<a href="#" target="_blank">LMS</a>` — replace `#` with your actual LMS URL before enabling the plugin. Plain-text email clients automatically receive a tag-stripped fallback.
 
 ## Day Counting Rules (Exclusion-Based)
 

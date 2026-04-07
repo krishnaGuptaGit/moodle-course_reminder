@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_course_reminder';
-$plugin->version = 2026040701;
-$plugin->release = '1.4.6';
+$plugin->version = 2026040702;
+$plugin->release = '1.4.7';
 $plugin->maturity = 200;
 $plugin->requires = 2024043000;
 $plugin->supported = [404, 500];
