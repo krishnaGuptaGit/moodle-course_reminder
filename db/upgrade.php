@@ -15,15 +15,21 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Upgrade steps for local_course_reminder
+ * Upgrade steps for local_course_reminder.
  *
  * @package    local_course_reminder
- * @copyright  2026
+ * @copyright  2026 Your Organisation
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Upgrade the plugin from an older version.
+ *
+ * @param int $oldversion The old plugin version.
+ * @return bool
+ */
 function xmldb_local_course_reminder_upgrade($oldversion) {
     global $DB;
     $dbman = $DB->get_manager();
@@ -74,9 +80,12 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
                   AND cc.id IS NULL";
         $rows = $DB->get_records_sql($sql, ['cutoff' => $cutoffstudent, 'now' => $now]);
         foreach ($rows as $row) {
-            if (!$DB->record_exists('local_course_reminder_log', [
-                'userid' => $row->userid, 'courseid' => $row->courseid, 'remindertype' => 'student'
-            ])) {
+            $exists = $DB->record_exists('local_course_reminder_log', [
+                'userid'       => $row->userid,
+                'courseid'     => $row->courseid,
+                'remindertype' => 'student',
+            ]);
+            if (!$exists) {
                 $rec = new \stdClass();
                 $rec->userid       = $row->userid;
                 $rec->courseid     = $row->courseid;
@@ -101,9 +110,12 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
                   AND cc.id IS NULL";
         $rows = $DB->get_records_sql($sql, ['cutoff' => $cutoffmanager, 'now' => $now]);
         foreach ($rows as $row) {
-            if (!$DB->record_exists('local_course_reminder_log', [
-                'userid' => $row->userid, 'courseid' => $row->courseid, 'remindertype' => 'manager'
-            ])) {
+            $exists = $DB->record_exists('local_course_reminder_log', [
+                'userid'       => $row->userid,
+                'courseid'     => $row->courseid,
+                'remindertype' => 'manager',
+            ]);
+            if (!$exists) {
                 $rec = new \stdClass();
                 $rec->userid       = $row->userid;
                 $rec->courseid     = $row->courseid;

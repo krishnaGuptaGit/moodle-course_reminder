@@ -14,6 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * Admin settings for local_course_reminder.
+ *
+ * @package    local_course_reminder
+ * @copyright  2025 Your Organisation
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 defined('MOODLE_INTERNAL') || die();
 
 if ($hassiteconfig) {
@@ -29,9 +37,6 @@ if ($hassiteconfig) {
         0
     ));
 
-    // -------------------------------------------------------------------------
-    // Manager Escalation Settings
-    // -------------------------------------------------------------------------
     $settings->add(new admin_setting_heading(
         'local_course_reminder_managersettings',
         get_string('managersettings', 'local_course_reminder'),
@@ -67,8 +72,8 @@ if ($hassiteconfig) {
         get_string('manager_emailtype_desc', 'local_course_reminder'),
         'individual',
         [
-            'individual' => get_string('emailtype_individual', 'local_course_reminder'),
-            'consolidated' => get_string('emailtype_consolidated', 'local_course_reminder')
+            'individual'   => get_string('emailtype_individual', 'local_course_reminder'),
+            'consolidated' => get_string('emailtype_consolidated', 'local_course_reminder'),
         ]
     ));
 
@@ -130,9 +135,6 @@ Learning Management System',
         PARAM_RAW
     ));
 
-    // -------------------------------------------------------------------------
-    // Student Reminder Settings
-    // -------------------------------------------------------------------------
     $settings->add(new admin_setting_heading(
         'local_course_reminder_studentremindersettings',
         get_string('studentremindersettings', 'local_course_reminder'),
@@ -168,8 +170,8 @@ Learning Management System',
         get_string('student_emailtype_desc', 'local_course_reminder'),
         'individual',
         [
-            'individual' => get_string('emailtype_individual', 'local_course_reminder'),
-            'consolidated' => get_string('emailtype_consolidated', 'local_course_reminder')
+            'individual'   => get_string('emailtype_individual', 'local_course_reminder'),
+            'consolidated' => get_string('emailtype_consolidated', 'local_course_reminder'),
         ]
     ));
 
@@ -216,24 +218,23 @@ LMS Administration Team',
         PARAM_TEXT
     ));
 
+    $defaultstudentconsolidated = 'Dear {username},' . "\n\n"
+        . 'The following courses require your attention:' . "\n\n"
+        . '{courselist}' . "\n\n"
+        . 'Each course listed above is part of our employee training and awareness'
+        . ' programme and contains important information relevant to your role.' . "\n"
+        . 'Please log in to the <a href="#" target="_blank">LMS</a>'
+        . ' and complete the course(s) at the earliest to ensure timely compliance.' . "\n"
+        . 'If you have already completed the course(s), please ignore this message.' . "\n\n"
+        . 'For any access-related issues, you may contact the IT support team.' . "\n\n"
+        . 'Regards,' . "\n"
+        . 'LMS Administration Team';
+
     $settings->add(new admin_setting_configtextarea(
         'local_course_reminder/student_emailbodyconsolidated',
         get_string('student_emailbodyconsolidated', 'local_course_reminder'),
         get_string('student_emailbodyconsolidated_desc', 'local_course_reminder'),
-        'Dear {username},
-
-The following courses require your attention:
-
-{courselist}
-
-Each course listed above is part of our employee training and awareness programme and contains important information relevant to your role.
-Please log in to the <a href="#" target="_blank">LMS</a> and complete the course(s) at the earliest to ensure timely compliance.
-If you have already completed the course(s), please ignore this message.
-
-For any access-related issues, you may contact the IT support team.
-
-Regards,
-LMS Administration Team',
+        $defaultstudentconsolidated,
         PARAM_RAW
     ));
 }

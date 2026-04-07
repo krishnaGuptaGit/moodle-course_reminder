@@ -7,7 +7,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 ## Requirements
 
-- Moodle 4.04 or later (up to 5.00)
+- Moodle 5.0 or later (up to 5.1)
 - Course completion tracking enabled on target courses
 - Custom user profile fields (required for Manager Escalation only):
   - `reporting_manager_email` — manager's email address

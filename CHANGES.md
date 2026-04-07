@@ -2,6 +2,25 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.4.8] - 2026-04-07
+
+### Fixed
+- **Moodle plugin repository precheck resolved** — corrected all 212 PHPCS coding style errors
+  and 17 warnings reported by the Moodle plugin checker:
+  - Added PHPDoc file, class, and function docblocks to all files that were missing them.
+  - Removed `defined('MOODLE_INTERNAL') || die()` from `classes/task/send_reminder_task.php`
+    (flagged as unexpected inside a namespaced class file).
+  - Replaced `elseif` with `else if` throughout (Moodle coding standard requirement).
+  - Fixed all inline comments to start with a capital letter and end with `.`, `!`, or `?`.
+  - Removed decorative section-divider comments (`// ---`).
+  - Added space after `function` keyword in anonymous functions (`function (` not `function(`).
+  - Added trailing commas after the last item in all multi-line arrays.
+  - Split all strings exceeding 132 characters across multiple concatenated lines.
+  - Extracted long default email body strings in `settings.php` to named variables before use.
+  - Fixed `record_exists` calls in `db/upgrade.php` — multi-line array arguments extracted to
+    `$exists` variables so the `if` condition is on a single line.
+  - Ensured all files use LF line endings (no CRLF).
+
 ## [1.4.7] - 2026-04-07
 
 ### Changed

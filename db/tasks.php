@@ -15,10 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Scheduled tasks definition
+ * Scheduled tasks definition.
  *
  * @package    local_course_reminder
- * @copyright  2025
+ * @copyright  2025 Your Organisation
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -26,13 +26,13 @@ defined('MOODLE_INTERNAL') || die();
 
 $tasks = [
     [
-        'classname' => 'local_course_reminder\task\send_reminder_task',
-        'blocking' => 0,
-        'minute' => '0',
-        'hour' => '17',
-        'day' => '*',
-        'month' => '*',
-        'dayofweek' => '*',
-        'disabled' => 0
-    ]
+        'classname'  => 'local_course_reminder\task\send_reminder_task',
+        'blocking'   => 0,
+        'minute'     => '0',
+        'hour'       => '17',
+        'day'        => '*',
+        'month'      => '*',
+        'dayofweek'  => '*',
+        'disabled'   => 0,
+    ],
 ];
