@@ -17,6 +17,7 @@
 namespace local_course_reminder\task;
 
 use core\task\scheduled_task;
+use core_user;
 use stdClass;
 
 defined('MOODLE_INTERNAL') || die();
@@ -28,8 +29,6 @@ class send_reminder_task extends scheduled_task {
     }
 
     public function execute() {
-        global $DB;
-
         // Global master switch — exits immediately if off.
         $enabled = get_config('local_course_reminder', 'enable');
         if (!$enabled) {
@@ -42,133 +41,7 @@ class send_reminder_task extends scheduled_task {
         // -----------------------------------------------------------------
         $managerenabled = get_config('local_course_reminder', 'manager_enable');
         if ($managerenabled) {
-            $days = get_config('local_course_reminder', 'manager_days');
-            if (empty($days)) {
-                $days = 7;
-            }
-
-            $emailtype = get_config('local_course_reminder', 'manager_emailtype');
-            if (empty($emailtype)) {
-                $emailtype = 'individual';
-            }
-
-            $daysAgo = strtotime("-{$days} days");
-            $today = strtotime('today');
-
-            $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
-                           u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic, u.middlename, u.alternatename,
-                           ue.timestart
-                    FROM {user_enrolments} ue
-                    JOIN {enrol} e ON e.id = ue.enrolid
-                    JOIN {course} c ON c.id = e.courseid
-                    JOIN {user} u ON u.id = ue.userid
-                    WHERE ue.timestart <= :timestart
-                      AND (ue.timeend = 0 OR ue.timeend > :timeend)
-                      AND u.deleted = 0
-                      AND u.suspended = 0";
-
-            $params = [
-                'timestart' => $daysAgo,
-                'timeend' => $today
-            ];
-
-            $enrollments = $DB->get_recordset_sql($sql, $params);
-
-            $processed = 0;
-            $emailssent = 0;
-            $skippedcompleted = 0;
-            $skippednocompletion = 0;
-            $skippednomanager = 0;
-            $skippednotmoodleuser = 0;
-
-            $pendingreminders = [];
-
-            foreach ($enrollments as $enrollment) {
-                try {
-                    if ($this->is_course_completed($enrollment->userid, $enrollment->courseid)) {
-                        $skippedcompleted++;
-                        $processed++;
-                        continue;
-                    }
-
-                    if (!$this->is_completion_enabled($enrollment->courseid)) {
-                        $skippednocompletion++;
-                        $processed++;
-                        continue;
-                    }
-
-                    $manager = $this->get_manager_data($enrollment->userid);
-
-                    if (empty($manager) || empty($manager->manager_email)) {
-                        mtrace("Debug: No manager - Employee: {$enrollment->email}");
-                        $skippednomanager++;
-                        $processed++;
-                        continue;
-                    }
-
-                    if ($enrollment->timestart > 0) {
-                        $enrollment->enrolleddays = floor((time() - $enrollment->timestart) / 86400);
-                    } else {
-                        $enrollment->enrolleddays = $days;
-                    }
-                    $enrollment->employeename = fullname($enrollment);
-
-                    if ($emailtype === 'consolidated') {
-                        $key = $manager->manager_email;
-                        if (!isset($pendingreminders[$key])) {
-                            $pendingreminders[$key] = [
-                                'manager' => $manager,
-                                'enrollments' => []
-                            ];
-                        }
-                        $pendingreminders[$key]['enrollments'][] = $enrollment;
-                    } else {
-                        $result = $this->send_individual_email($manager, $enrollment, $days);
-                        if ($result === 'notmoodleuser') {
-                            $skippednotmoodleuser++;
-                        } else {
-                            $emailssent++;
-                        }
-                    }
-                    $processed++;
-
-                } catch (\Exception $e) {
-                    mtrace("Error processing enrollment {$enrollment->id}: " . $e->getMessage());
-                    $processed++;
-                }
-            }
-
-            $enrollments->close();
-
-            if ($emailtype === 'consolidated' && !empty($pendingreminders)) {
-                foreach ($pendingreminders as $key => $data) {
-                    $manager = $data['manager'];
-                    $enrollmentslist = $data['enrollments'];
-
-                    usort($enrollmentslist, function($a, $b) {
-                        return strcasecmp($a->employeename, $b->employeename);
-                    });
-
-                    $manageruser = \core_user::get_user_by_email($manager->manager_email);
-
-                    if (!$manageruser) {
-                        mtrace("Debug: Manager not in Moodle - Employee emails: " . implode(', ', array_map(function($e) { return $e->email; }, $enrollmentslist)));
-                        $skippednotmoodleuser += count($enrollmentslist);
-                        continue;
-                    }
-
-                    $this->send_consolidated_email($manager, $enrollmentslist);
-                    $emailssent++;
-                }
-            }
-
-            mtrace("Course escalation reminder task completed.");
-            mtrace("Total processed: {$processed}");
-            mtrace("Emails sent: {$emailssent}");
-            mtrace("Skipped (already completed): {$skippedcompleted}");
-            mtrace("Skipped (completion not enabled): {$skippednocompletion}");
-            mtrace("Skipped (no manager): {$skippednomanager}");
-            mtrace("Skipped (manager not Moodle user): {$skippednotmoodleuser}");
+            $this->process_manager_reminders();
         }
 
         // -----------------------------------------------------------------
@@ -176,27 +49,221 @@ class send_reminder_task extends scheduled_task {
         // -----------------------------------------------------------------
         $studentreminderenabled = get_config('local_course_reminder', 'student_enable');
         if ($studentreminderenabled) {
-            $studentdays = get_config('local_course_reminder', 'student_days');
-            if (empty($studentdays)) {
+            $studentdays = (int) get_config('local_course_reminder', 'student_days');
+            if ($studentdays <= 0) {
                 $studentdays = 7;
             }
             $this->process_student_reminders($studentdays);
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Manager reminder processing
+    // -------------------------------------------------------------------------
+
+    private function process_manager_reminders() {
+        global $DB;
+
+        $days = (int) get_config('local_course_reminder', 'manager_days');
+        if ($days <= 0) {
+            $days = 7;
+        }
+
+        $cycledays = (int) get_config('local_course_reminder', 'manager_cycledays');
+        if ($cycledays <= 0) {
+            $cycledays = 7;
+        }
+
+        $emailtype = get_config('local_course_reminder', 'manager_emailtype');
+        if (empty($emailtype)) {
+            $emailtype = 'individual';
+        }
+
+        // Exclusion-based cutoff: enrollment day itself is not counted.
+        // e.g. days=3, enrolled 1 Apr → first reminder fires 4 Apr.
+        // cutoffend = midnight of (today - days + 1); timestart must be strictly before that.
+        //
+        // Note: strtotime('today midnight') resolves relative to the server's configured
+        // timezone (php.ini date.timezone). Ensure this matches the intended day boundary
+        // for your deployment. UTC is recommended to avoid DST-related day-boundary drift.
+        $now           = time();
+        $todaymidnight = strtotime('today midnight');
+        $cutoffend     = $todaymidnight - (($days - 1) * 86400);
+
+        $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
+                       u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
+                       u.middlename, u.alternatename, ue.timestart
+                FROM {user_enrolments} ue
+                JOIN {enrol} e ON e.id = ue.enrolid
+                JOIN {course} c ON c.id = e.courseid
+                JOIN {course_categories} cc ON cc.id = c.category
+                JOIN {user} u ON u.id = ue.userid
+                WHERE ue.timestart > 0
+                  AND ue.timestart < :cutoffend
+                  AND (ue.timeend = 0 OR ue.timeend > :now)
+                  AND ue.status = 0
+                  AND e.status = 0
+                  AND u.deleted = 0
+                  AND u.suspended = 0
+                  AND u.confirmed = 1
+                  AND c.visible = 1
+                  AND c.id != 1
+                  AND cc.visible = 1
+                  AND (c.startdate = 0 OR c.startdate <= :nowstart)
+                  AND (c.enddate = 0 OR c.enddate > :nowend)";
+
+        $enrollments = $DB->get_recordset_sql($sql, [
+            'cutoffend' => $cutoffend,
+            'now'       => $now,
+            'nowstart'  => $now,
+            'nowend'    => $now,
+        ]);
+
+        $processed = $emailssent = $skippedcompleted = 0;
+        $skippednocompletion = $skippednomanager = $skippednotmoodleuser = $skippednotdue = 0;
+
+        $pendingreminders   = [];
+        $seenmanagercourses = [];
+
+        foreach ($enrollments as $enrollment) {
+            try {
+                if ($this->is_course_completed($enrollment->userid, $enrollment->courseid)) {
+                    $skippedcompleted++;
+                    $processed++;
+                    continue;
+                }
+
+                if (!$this->is_completion_enabled($enrollment->courseid)) {
+                    $skippednocompletion++;
+                    $processed++;
+                    continue;
+                }
+
+                $manager = $this->get_manager_data($enrollment->userid);
+
+                if (empty($manager) || empty($manager->manager_email)) {
+                    mtrace("Debug: No manager - Employee: {$enrollment->email}");
+                    $skippednomanager++;
+                    $processed++;
+                    continue;
+                }
+
+                $logrecord = $DB->get_record('local_course_reminder_log', [
+                    'userid'       => $enrollment->userid,
+                    'courseid'     => $enrollment->courseid,
+                    'remindertype' => 'manager',
+                ]);
+
+                // Cycle check: fires when dayssince >= cycledays.
+                // cycledays=1 → daily (fires every 1 day).
+                // cycledays=2 → every 2 days. cycledays=7 → weekly.
+                // e.g. cycledays=2, last reminder 4 Apr → next fires 6 Apr.
+                if ($logrecord) {
+                    $lastsentmidnight = strtotime('midnight', $logrecord->timesent);
+                    $dayssince = (int)(($todaymidnight - $lastsentmidnight) / 86400);
+                    $shouldsend = $dayssince >= $cycledays;
+                } else {
+                    $shouldsend = true;
+                }
+
+                if (!$shouldsend) {
+                    $skippednotdue++;
+                    $processed++;
+                    continue;
+                }
+
+                $enrollment->enrolleddays = (int) floor((time() - $enrollment->timestart) / 86400);
+                $enrollment->employeename = fullname($enrollment);
+                $enrollment->logrecord    = $logrecord;
+
+                if ($emailtype === 'consolidated') {
+                    $key = $manager->manager_email;
+                    // Dedup on (manager_email, userid, courseid): prevents the same employee+course
+                    // appearing twice (e.g. enrolled via manual + cohort), but allows different
+                    // employees enrolled in the same course to each appear in the manager's email.
+                    if (isset($seenmanagercourses[$key][$enrollment->userid][$enrollment->courseid])) {
+                        $processed++;
+                        continue;
+                    }
+                    $seenmanagercourses[$key][$enrollment->userid][$enrollment->courseid] = true;
+
+                    if (!isset($pendingreminders[$key])) {
+                        $pendingreminders[$key] = ['manager' => $manager, 'enrollments' => []];
+                    }
+                    $pendingreminders[$key]['enrollments'][] = $enrollment;
+                } else {
+                    $result = $this->send_individual_email($manager, $enrollment, $days);
+                    if ($result === 'notmoodleuser') {
+                        $skippednotmoodleuser++;
+                    } elseif ($result === 'sent') {
+                        $this->upsert_log($enrollment->userid, $enrollment->courseid, 'manager', $logrecord);
+                        $emailssent++;
+                    } else {
+                        mtrace("Warning: Failed to send manager reminder email to {$manager->manager_email} for employee {$enrollment->email}");
+                    }
+                }
+                $processed++;
+
+            } catch (\Exception $e) {
+                mtrace("Error processing enrollment {$enrollment->id}: " . $e->getMessage());
+                $processed++;
+            }
+        }
+
+        $enrollments->close();
+
+        if ($emailtype === 'consolidated' && !empty($pendingreminders)) {
+            foreach ($pendingreminders as $data) {
+                $manager         = $data['manager'];
+                $enrollmentslist = $data['enrollments'];
+
+                usort($enrollmentslist, function($a, $b) {
+                    return strcasecmp($a->employeename, $b->employeename);
+                });
+
+                $manageruser = core_user::get_user_by_email($manager->manager_email);
+
+                if (!$manageruser) {
+                    mtrace("Debug: Manager not in Moodle - Employee emails: " .
+                        implode(', ', array_map(function($e) { return $e->email; }, $enrollmentslist)));
+                    $skippednotmoodleuser += count($enrollmentslist);
+                    continue;
+                }
+
+                $sent = $this->send_consolidated_email($manager, $enrollmentslist);
+
+                if ($sent) {
+                    foreach ($enrollmentslist as $enrollment) {
+                        $this->upsert_log($enrollment->userid, $enrollment->courseid, 'manager', $enrollment->logrecord);
+                    }
+                    $emailssent++;
+                }
+            }
+        }
+
+        mtrace("Manager escalation reminder task completed.");
+        mtrace("Total processed: {$processed}");
+        mtrace("Emails sent: {$emailssent}");
+        mtrace("Skipped (already completed): {$skippedcompleted}");
+        mtrace("Skipped (completion not enabled): {$skippednocompletion}");
+        mtrace("Skipped (no manager): {$skippednomanager}");
+        mtrace("Skipped (manager not Moodle user): {$skippednotmoodleuser}");
+        mtrace("Skipped (reminder not yet due): {$skippednotdue}");
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
     private function is_course_completed($userid, $courseid) {
         global $DB;
 
         $completion = $DB->get_record('course_completions', [
             'userid' => $userid,
-            'course' => $courseid
+            'course' => $courseid,
         ]);
 
-        if ($completion && $completion->timecompleted) {
-            return true;
-        }
-
-        return false;
+        return ($completion && $completion->timecompleted);
     }
 
     private function is_completion_enabled($courseid) {
@@ -217,11 +284,15 @@ class send_reminder_task extends scheduled_task {
         }
 
         $manageremail = $DB->get_field('user_info_data', 'data', [
-            'userid' => $userid,
-            'fieldid' => $managerfieldid
+            'userid'  => $userid,
+            'fieldid' => $managerfieldid,
         ]);
 
         if (empty($manageremail)) {
+            return null;
+        }
+
+        if (!validate_email($manageremail)) {
             return null;
         }
 
@@ -230,20 +301,40 @@ class send_reminder_task extends scheduled_task {
 
         if ($managerfieldidname) {
             $managername = $DB->get_field('user_info_data', 'data', [
-                'userid' => $userid,
-                'fieldid' => $managerfieldidname
+                'userid'  => $userid,
+                'fieldid' => $managerfieldidname,
             ]);
-        }
-
-        if (!validate_email($manageremail)) {
-            return null;
         }
 
         $manager = new stdClass();
         $manager->manager_email = $manageremail;
-        $manager->manager_name = $managername ?: 'Manager';
+        $manager->manager_name  = $managername ?: 'Manager';
 
         return $manager;
+    }
+
+    /**
+     * Upsert a reminder log record after a reminder is successfully sent.
+     *
+     * @param int         $userid
+     * @param int         $courseid
+     * @param string      $remindertype  'manager' or 'student'
+     * @param object|null $logrecord     Existing DB record if any, null for first send.
+     */
+    private function upsert_log($userid, $courseid, $remindertype, $logrecord) {
+        global $DB;
+
+        if ($logrecord) {
+            $logrecord->timesent = time();
+            $DB->update_record('local_course_reminder_log', $logrecord);
+        } else {
+            $newrecord = new stdClass();
+            $newrecord->userid       = $userid;
+            $newrecord->courseid     = $courseid;
+            $newrecord->remindertype = $remindertype;
+            $newrecord->timesent     = time();
+            $DB->insert_record('local_course_reminder_log', $newrecord);
+        }
     }
 
     private function send_individual_email($manager, $enrollment, $days) {
@@ -265,17 +356,17 @@ class send_reminder_task extends scheduled_task {
             $bodytemplate = "Dear {managername},\n\nThis is a reminder that {username} has been enrolled in the course \"{coursename}\" for {days} days but has not yet completed it.\n\nPlease follow up with the learner to ensure they complete their training.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
         }
 
-        $subject = str_replace('{coursename}', $enrollment->coursename, $subjecttemplate);
-        $subject = str_replace('{username}', $enrollment->employeename, $subject);
-        $subject = str_replace('{managername}', $manager->manager_name, $subject);
-        $subject = str_replace('{days}', $days, $subject);
-        $subject = str_replace('{sitename}', $sitename, $subject);
+        $replacements = [
+            '{coursename}'   => $enrollment->coursename,
+            '{username}'     => $enrollment->employeename,
+            '{managername}'  => $manager->manager_name,
+            '{days}'         => $days,
+            '{enrolleddays}' => $enrollment->enrolleddays,
+            '{sitename}'     => $sitename,
+        ];
 
-        $message = str_replace('{coursename}', $enrollment->coursename, $bodytemplate);
-        $message = str_replace('{username}', $enrollment->employeename, $message);
-        $message = str_replace('{managername}', $manager->manager_name, $message);
-        $message = str_replace('{days}', $days, $message);
-        $message = str_replace('{sitename}', $sitename, $message);
+        $subject = str_replace(array_keys($replacements), array_values($replacements), $subjecttemplate);
+        $message = str_replace(array_keys($replacements), array_values($replacements), $bodytemplate);
 
         $manageruser = \core_user::get_user_by_email($manager->manager_email);
 
@@ -286,7 +377,7 @@ class send_reminder_task extends scheduled_task {
 
         $noreplyuser = \core_user::get_noreply_user();
 
-        email_to_user(
+        $sent = email_to_user(
             $manageruser,
             $noreplyuser,
             $subject,
@@ -296,7 +387,7 @@ class send_reminder_task extends scheduled_task {
             true
         );
 
-        return 'sent';
+        return $sent ? 'sent' : 'failed';
     }
 
     private function send_consolidated_email($manager, $enrollments) {
@@ -321,18 +412,19 @@ class send_reminder_task extends scheduled_task {
             $counter++;
         }
 
-        $subject = str_replace('{managername}', $manager->manager_name, $subjecttemplate);
-        $subject = str_replace('{sitename}', $sitename, $subject);
+        $replacements = [
+            '{managername}' => $manager->manager_name,
+            '{employeelist}' => $employeelist,
+            '{sitename}'    => $sitename,
+        ];
 
-        $message = str_replace('{managername}', $manager->manager_name, $bodytemplate);
-        $message = str_replace('{employeelist}', $employeelist, $message);
-        $message = str_replace('{sitename}', $sitename, $message);
+        $subject = str_replace(array_keys($replacements), array_values($replacements), $subjecttemplate);
+        $message = str_replace(array_keys($replacements), array_values($replacements), $bodytemplate);
 
         $manageruser = \core_user::get_user_by_email($manager->manager_email);
-
         $noreplyuser = \core_user::get_noreply_user();
 
-        email_to_user(
+        $sent = email_to_user(
             $manageruser,
             $noreplyuser,
             $subject,
@@ -341,18 +433,36 @@ class send_reminder_task extends scheduled_task {
             '',
             true
         );
+
+        return $sent;
     }
+
+    // -------------------------------------------------------------------------
+    // Student reminder processing
+    // -------------------------------------------------------------------------
 
     private function process_student_reminders($studentdays) {
         global $DB;
+
+        $cycledays = (int) get_config('local_course_reminder', 'student_cycledays');
+        if ($cycledays <= 0) {
+            $cycledays = 7;
+        }
 
         $emailtype = get_config('local_course_reminder', 'student_emailtype');
         if (empty($emailtype)) {
             $emailtype = 'individual';
         }
 
-        $daysAgo = strtotime("-{$studentdays} days");
-        $today = strtotime('today');
+        // Exclusion-based cutoff: enrollment day itself is not counted.
+        // e.g. days=3, enrolled 1 Apr → first reminder fires 4 Apr.
+        //
+        // Note: strtotime('today midnight') resolves relative to the server's configured
+        // timezone (php.ini date.timezone). Ensure this matches the intended day boundary
+        // for your deployment. UTC is recommended to avoid DST-related day-boundary drift.
+        $now           = time();
+        $todaymidnight = strtotime('today midnight');
+        $cutoffend     = $todaymidnight - (($studentdays - 1) * 86400);
 
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
@@ -360,32 +470,80 @@ class send_reminder_task extends scheduled_task {
                 FROM {user_enrolments} ue
                 JOIN {enrol} e ON e.id = ue.enrolid
                 JOIN {course} c ON c.id = e.courseid
+                JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
-                WHERE ue.timestart <= :timestart
-                  AND (ue.timeend = 0 OR ue.timeend > :timeend)
+                WHERE ue.timestart > 0
+                  AND ue.timestart < :cutoffend
+                  AND (ue.timeend = 0 OR ue.timeend > :now)
+                  AND ue.status = 0
+                  AND e.status = 0
                   AND u.deleted = 0
-                  AND u.suspended = 0";
+                  AND u.suspended = 0
+                  AND u.confirmed = 1
+                  AND c.visible = 1
+                  AND c.id != 1
+                  AND cc.visible = 1
+                  AND (c.startdate = 0 OR c.startdate <= :nowstart)
+                  AND (c.enddate = 0 OR c.enddate > :nowend)";
 
-        $params = ['timestart' => $daysAgo, 'timeend' => $today];
+        $params = [
+            'cutoffend' => $cutoffend,
+            'now'       => $now,
+            'nowstart'  => $now,
+            'nowend'    => $now,
+        ];
+
         $enrollments = $DB->get_recordset_sql($sql, $params);
 
-        $processed = 0;
-        $emailssent = 0;
+        $processed        = 0;
+        $emailssent       = 0;
         $skippedcompleted = 0;
-        $skippedengaged = 0;
+        $skippednocompletion = 0;
+        $skippednotdue    = 0;
 
+        // For consolidated mode: accumulate per student, tracking seen courses to avoid duplicates.
         $pendingstudentreminders = [];
+        $seenstudentcourses = []; // $seenstudentcourses[$userid][$courseid] = true
 
         foreach ($enrollments as $enrollment) {
             try {
+                // Skip students who have already completed the course.
                 if ($this->is_course_completed($enrollment->userid, $enrollment->courseid)) {
                     $skippedcompleted++;
                     $processed++;
                     continue;
                 }
 
-                if ($this->has_student_engaged($enrollment->userid, $enrollment->courseid, $enrollment->timestart)) {
-                    $skippedengaged++;
+                // Skip courses without completion tracking — there is no way to determine
+                // completion, so reminders would fire indefinitely.
+                if (!$this->is_completion_enabled($enrollment->courseid)) {
+                    $skippednocompletion++;
+                    $processed++;
+                    continue;
+                }
+
+                // Reminder logic: send only if first time or cycle has elapsed.
+                // Both students with zero activity AND students who started but did not finish are included.
+                $logrecord = $DB->get_record('local_course_reminder_log', [
+                    'userid'       => $enrollment->userid,
+                    'courseid'     => $enrollment->courseid,
+                    'remindertype' => 'student',
+                ]);
+
+                // Cycle check: fires when dayssince >= cycledays.
+                // cycledays=1 → daily (fires every 1 day).
+                // cycledays=2 → every 2 days. cycledays=7 → weekly.
+                // e.g. cycledays=2, last reminder 4 Apr → next fires 6 Apr.
+                if ($logrecord) {
+                    $lastsentmidnight = strtotime('midnight', $logrecord->timesent);
+                    $dayssince = (int)(($todaymidnight - $lastsentmidnight) / 86400);
+                    $shouldsend = $dayssince >= $cycledays;
+                } else {
+                    $shouldsend = true;
+                }
+
+                if (!$shouldsend) {
+                    $skippednotdue++;
                     $processed++;
                     continue;
                 }
@@ -394,6 +552,7 @@ class send_reminder_task extends scheduled_task {
                     ? floor((time() - $enrollment->timestart) / 86400)
                     : $studentdays;
                 $enrollment->employeename = fullname($enrollment);
+                $enrollment->logrecord    = $logrecord;
 
                 $studentuser = \core_user::get_user($enrollment->userid);
                 if (!$studentuser || $studentuser->deleted || $studentuser->suspended) {
@@ -403,16 +562,26 @@ class send_reminder_task extends scheduled_task {
 
                 if ($emailtype === 'consolidated') {
                     $key = $enrollment->userid;
+                    // Dedup: skip if this (userid, courseid) pair was already queued.
+                    if (isset($seenstudentcourses[$key][$enrollment->courseid])) {
+                        $processed++;
+                        continue;
+                    }
+                    $seenstudentcourses[$key][$enrollment->courseid] = true;
+
                     if (!isset($pendingstudentreminders[$key])) {
                         $pendingstudentreminders[$key] = [
                             'studentuser' => $studentuser,
-                            'enrollments' => []
+                            'enrollments' => [],
                         ];
                     }
                     $pendingstudentreminders[$key]['enrollments'][] = $enrollment;
                 } else {
-                    $this->send_student_email($studentuser, $enrollment, $studentdays);
-                    $emailssent++;
+                    $sent = $this->send_student_email($studentuser, $enrollment, $studentdays);
+                    if ($sent) {
+                        $this->upsert_log($enrollment->userid, $enrollment->courseid, 'student', $logrecord);
+                        $emailssent++;
+                    }
                 }
                 $processed++;
 
@@ -426,15 +595,22 @@ class send_reminder_task extends scheduled_task {
 
         if ($emailtype === 'consolidated' && !empty($pendingstudentreminders)) {
             foreach ($pendingstudentreminders as $key => $data) {
-                $studentuser = $data['studentuser'];
+                $studentuser     = $data['studentuser'];
                 $enrollmentslist = $data['enrollments'];
 
                 usort($enrollmentslist, function($a, $b) {
                     return strcasecmp($a->coursename, $b->coursename);
                 });
 
-                $this->send_student_consolidated_email($studentuser, $enrollmentslist, $studentdays);
-                $emailssent++;
+                $sent = $this->send_student_consolidated_email($studentuser, $enrollmentslist, $studentdays);
+
+                if ($sent) {
+                    // Log each course covered by this consolidated email.
+                    foreach ($enrollmentslist as $enrollment) {
+                        $this->upsert_log($enrollment->userid, $enrollment->courseid, 'student', $enrollment->logrecord);
+                    }
+                    $emailssent++;
+                }
             }
         }
 
@@ -442,23 +618,8 @@ class send_reminder_task extends scheduled_task {
         mtrace("Total processed: {$processed}");
         mtrace("Student emails sent: {$emailssent}");
         mtrace("Skipped (already completed): {$skippedcompleted}");
-        mtrace("Skipped (student engaged): {$skippedengaged}");
-    }
-
-    private function has_student_engaged($userid, $courseid, $enrolltime) {
-        global $DB;
-
-        $dbman = $DB->get_manager();
-        if ($dbman->table_exists('logstore_standard_log')) {
-            return $DB->record_exists_select(
-                'logstore_standard_log',
-                'userid = :userid AND courseid = :courseid AND timecreated >= :enrolltime',
-                ['userid' => $userid, 'courseid' => $courseid, 'enrolltime' => $enrolltime]
-            );
-        }
-
-        // Fallback: user_lastaccess is always present in Moodle core.
-        return $DB->record_exists('user_lastaccess', ['userid' => $userid, 'courseid' => $courseid]);
+        mtrace("Skipped (completion not enabled): {$skippednocompletion}");
+        mtrace("Skipped (reminder not yet due): {$skippednotdue}");
     }
 
     private function send_student_email($studentuser, $enrollment, $studentdays) {
@@ -473,14 +634,15 @@ class send_reminder_task extends scheduled_task {
 
         $bodytemplate = get_config('local_course_reminder', 'student_emailbodyindividual');
         if (empty($bodytemplate)) {
-            $bodytemplate = "Dear {username},\n\nThis is a reminder that you have been enrolled in the course \"{coursename}\" for {days} days but have not yet completed it and we have not seen any recent activity from you.\n\nPlease log in and continue your training at your earliest convenience.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
+            $bodytemplate = "Dear {username},\n\nThis is a reminder that you have been enrolled in the course \"{coursename}\" for {days} days but have not yet completed it.\n\nPlease log in and continue your training at your earliest convenience.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
         }
 
         $replacements = [
-            '{coursename}' => $enrollment->coursename,
-            '{username}'   => $enrollment->employeename,
-            '{days}'       => $studentdays,
-            '{sitename}'   => $sitename,
+            '{coursename}'   => $enrollment->coursename,
+            '{username}'     => $enrollment->employeename,
+            '{days}'         => $studentdays,
+            '{enrolleddays}' => $enrollment->enrolleddays,
+            '{sitename}'     => $sitename,
         ];
 
         $subject = str_replace(array_keys($replacements), array_values($replacements), $subjecttemplate);
@@ -488,7 +650,7 @@ class send_reminder_task extends scheduled_task {
 
         $noreplyuser = \core_user::get_noreply_user();
 
-        email_to_user(
+        return email_to_user(
             $studentuser,
             $noreplyuser,
             $subject,
@@ -535,7 +697,7 @@ class send_reminder_task extends scheduled_task {
 
         $noreplyuser = \core_user::get_noreply_user();
 
-        email_to_user(
+        return email_to_user(
             $studentuser,
             $noreplyuser,
             $subject,

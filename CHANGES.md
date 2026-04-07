@@ -2,6 +2,72 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.4.6] - 2026-04-07
+
+### Fixed
+- **Cycle Days off-by-one corrected** — the repeat reminder cycle check now uses `>=` instead of `>`. Previously, `cycledays = 7` fired every 8 days; it now correctly fires every 7 days. `cycledays = 2` now fires every 2 days (was every 3), and so on.
+- **`cycledays = 1` now enables daily reminders** — setting Reminder Cycle Days to 1 sends a follow-up reminder every day. This was not achievable with the previous `>` logic.
+
+### Changed
+- Cycle Days hint text updated to reflect `1 = daily` and corrected example dates.
+
+## [1.4.5] - 2026-04-06
+
+### Fixed
+- **Failed manager individual email sends now logged** — when `email_to_user()` returns false for an individual manager reminder, a `Warning:` line is written to the task log so admins can detect mail delivery problems. The reminder log is intentionally not updated on failure, so the same reminder is retried on the next scheduled cycle.
+
+### Added
+- **`{enrolleddays}` variable now visible in admin UI** — the hint text for all four individual email template fields (manager subject, manager body, student subject, student body) now lists `{enrolleddays}` alongside the other available variables. `{enrolleddays}` = actual days since enrollment; `{days}` = configured reminder threshold.
+- **README updated** — `{enrolleddays}` added to template variable tables; performance/scale section added documenting the per-enrollment query pattern and recommended upper bound (~5,000 active incomplete enrollments per run).
+
+## [1.4.4] - 2026-04-06
+
+### Fixed
+- **Category visibility respected** — both reminder paths now join `course_categories` and filter `cc.visible = 1`. Courses inside hidden categories are excluded from all reminders.
+- **Enrollments with `timestart = 0` excluded** — rows where `user_enrolments.timestart` is zero (no recorded start date) are now filtered out at the SQL level. Previously they fell through to a PHP fallback that substituted the configured days value, which was misleading.
+
+### Added
+- **`{enrolleddays}` template variable** — available in individual email templates (both manager and student). Resolves to the actual number of days the learner has been enrolled, as opposed to `{days}` which reflects the configured reminder threshold. Use `{enrolleddays}` when you want the email to state the real elapsed time.
+
+### Changed
+- **Timezone note documented in code** — a comment has been added near both `strtotime('today midnight')` calls explaining that day-boundary calculations depend on the server's configured timezone (`php.ini date.timezone`). UTC is recommended to avoid DST-related drift.
+
+## [1.4.3] - 2026-04-06
+
+### Fixed
+- **Email send failures no longer advance the reminder cycle** — all four send methods (`send_individual_email`, `send_consolidated_email`, `send_student_email`, `send_student_consolidated_email`) now check the return value of `email_to_user()`. The reminder log (`local_course_reminder_log`) is only updated when the email is successfully delivered. Previously, a failed send still wrote the timestamp, causing the next reminder to be skipped for the full cycle period.
+- **Student path: courses without completion tracking now skipped** — the student reminder path now checks `is_completion_enabled()` before queuing a reminder. Without completion tracking, there is no way to determine when a student finishes, so reminders would fire indefinitely.
+- **Site course (id=1) excluded from both reminder paths** — the Moodle site course is no longer a candidate for reminders in either the manager or student SQL queries.
+
+## [1.4.2] - 2026-04-06
+
+### Added
+- **Active course and active user filtering** — both manager and student reminder queries now exclude:
+  - Hidden courses (`course.visible = 0`)
+  - Courses that have not yet started (`course.startdate > now`)
+  - Courses that have ended (`course.enddate != 0 AND course.enddate <= now`)
+  - Disabled enrolment methods (`enrol.status != 0`)
+  - Suspended user enrolments (`user_enrolments.status != 0`)
+  - Unconfirmed user accounts (`user.confirmed = 0`)
+
+## [1.4.1] - 2026-04-06
+
+### Fixed
+- **Manager consolidated dedup was too broad** — the dedup guard used `(manager_email, courseid)` as its key, which caused different employees enrolled in the same course under the same manager to be silently dropped from the consolidated email (only the first employee encountered was included). The key is now `(manager_email, userid, courseid)`, correctly deduplicating only the same employee enrolled via multiple methods.
+- **Email burst on upgrade from v1.3** — after upgrading, the `local_course_reminder_log` table was created empty. On the first cron run, all historically overdue enrollments had no log record and therefore all fired at once. `db/upgrade.php` now seeds the log table with the current timestamp for all overdue, incomplete enrollments, so the first cycle fires after the configured cycle interval rather than immediately on upgrade day.
+
+## [1.4] - 2026-04-06
+
+### Fixed
+- **Duplicate courses in consolidated emails** — when a learner was enrolled in the same course via multiple enrolment methods, the course appeared more than once in the consolidated email list. Fixed by deduplicating on `(userid, courseid)` before queuing, in both the manager and student consolidated paths.
+- **Incorrect reminder audience for students** — students who had started but not completed a course were incorrectly skipped. The engagement-check (`logstore_standard_log`) skip has been removed; reminders are now sent to all incomplete learners regardless of activity status.
+- **Reminders firing every day for all historic enrollments** — the SQL filter selected all enrollments older than N days, causing re-sends on every daily run. Scheduling is now gated by the `local_course_reminder_log` table: the first reminder fires once at the N-day mark, and subsequent reminders only fire after the configured cycle interval.
+
+### Added
+- **Reminder Cycle Days** — new configurable setting for both manager (`manager_cycledays`) and student (`student_cycledays`) paths (default: 7). After the first reminder, follow-up reminders are sent every N cycle days until the course is completed.
+- **`local_course_reminder_log` database table** — tracks `(userid, courseid, remindertype, timesent)` to enforce one-time first sends and cycle-based repeat sends. Created automatically on install (`db/install.xml`) and on upgrade from v1.3 (`db/upgrade.php`).
+- **Exclusion-based day counting** — both Reminder Days and Cycle Days now use exclusion-based logic. The enrollment day (or previous reminder day) is not counted. Example: Reminder Days = 3, enrolled 1 Apr → first reminder on 4 Apr; Cycle Days = 2 → second reminder on 6 Apr.
+
 ## [1.3] - 2026-04-01
 
 ### Added
@@ -9,11 +75,11 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
 
 ### Changed
 - Body textarea admin settings changed from `PARAM_TEXT` to `PARAM_RAW` so HTML content (links, tags) is accepted and saved without error.
-- Default student individual email body updated to match company branding, including an Infohub link placeholder and Infohub/LMS access instructions.
+- Default student individual email body updated to match company branding, including a site link placeholder and LMS access instructions.
 - Default student consolidated email body updated:
   - Singular/plural issue resolved — "The course is part of..." rewritten as "Each course listed above is part of..." to read correctly whether one or multiple courses are listed.
-  - "complete the course" and "completed the course" updated to "complete the course(s)" / "completed the course(s)".
-  - Infohub link placeholder added.
+  - "complete the course" / "completed the course" updated to "complete the course(s)" / "completed the course(s)".
+  - Site link placeholder added.
 
 ## [1.2] - 2025-07-26
 
@@ -25,11 +91,10 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
 ### Added
 - **Global enable/disable** — single master switch that disables all reminder features when off.
 - **Manager Escalation** is now a named, independently togglable feature with its own `manager_enable`, `manager_days`, `manager_emailtype`, and email templates.
-- **Student Reminder** feature — sends reminder emails directly to students who have not engaged with or completed their enrolled course:
+- **Student Reminder** feature — sends reminder emails directly to students who have not completed their enrolled course:
   - Independent `student_enable`, `student_days`, and `student_emailtype` settings.
   - Individual mode: one email per incomplete course with variables `{coursename}`, `{username}`, `{days}`, `{sitename}`.
   - Consolidated mode: one email per student listing all incomplete courses with variable `{courselist}`.
-  - Engagement detection via `logstore_standard_log` (falls back to `user_lastaccess` if unavailable).
 
 ## [1.0] - 2025-07-26
 
@@ -42,10 +107,6 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
   - **Consolidated** — one summary email per manager listing all incomplete learners.
 - Customizable email subject and body templates with placeholder variables.
 - Manager lookup via custom user profile fields (`reporting_manager_email`, `reporting_manager_name`).
-- Automatic skipping of:
-  - Completed courses.
-  - Courses without completion tracking enabled.
-  - Learners without an assigned manager.
-  - Managers who are not registered Moodle users.
+- Automatic skipping of completed courses, courses without completion tracking, learners without an assigned manager, and managers not registered as Moodle users.
 - Admin settings page under Site administration > Plugins > Local plugins.
 - Detailed task execution logging with counts for processed, sent, and skipped enrollments.

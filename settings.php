@@ -53,6 +53,14 @@ if ($hassiteconfig) {
         PARAM_INT
     ));
 
+    $settings->add(new admin_setting_configtext(
+        'local_course_reminder/manager_cycledays',
+        get_string('manager_cycledays', 'local_course_reminder'),
+        get_string('manager_cycledays_desc', 'local_course_reminder'),
+        7,
+        PARAM_INT
+    ));
+
     $settings->add(new admin_setting_configselect(
         'local_course_reminder/manager_emailtype',
         get_string('manager_emailtype', 'local_course_reminder'),
@@ -146,6 +154,14 @@ Learning Management System',
         PARAM_INT
     ));
 
+    $settings->add(new admin_setting_configtext(
+        'local_course_reminder/student_cycledays',
+        get_string('student_cycledays', 'local_course_reminder'),
+        get_string('student_cycledays_desc', 'local_course_reminder'),
+        7,
+        PARAM_INT
+    ));
+
     $settings->add(new admin_setting_configselect(
         'local_course_reminder/student_emailtype',
         get_string('student_emailtype', 'local_course_reminder'),
@@ -182,7 +198,7 @@ The following course requires your attention:
 {coursename}
 
 The course is part of our employee training and awareness programme and contains important information relevant to your role.
-Please <a href="https://your-infohub-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course at the earliest to ensure timely compliance.
+Please <a href="https://your-site-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course at the earliest to ensure timely compliance.
 If you have already completed the course, please ignore this message.
 
 For any access-related issues, you may contact the IT support team.
@@ -211,7 +227,7 @@ The following courses require your attention:
 {courselist}
 
 Each course listed above is part of our employee training and awareness programme and contains important information relevant to your role.
-Please <a href="https://your-infohub-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course(s) at the earliest to ensure timely compliance.
+Please <a href="https://your-site-url">log in to the Infohub</a> and click on LMS link available in "Useful Links" section to access LMS and complete the course(s) at the earliest to ensure timely compliance.
 If you have already completed the course(s), please ignore this message.
 
 For any access-related issues, you may contact the IT support team.
