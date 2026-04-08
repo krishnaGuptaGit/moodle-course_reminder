@@ -2,6 +2,35 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.4.9] - 2026-04-08
+
+### Fixed
+- **Enrollments with `timestart = 0` now included** — many Moodle enrollment methods
+  (cohort sync, self-enrolment with no start date, manual enrolment without a start
+  restriction) store `timestart = 0` meaning no start restriction. The v1.4.4 filter
+  `ue.timestart > 0` was silently dropping all such enrollments before any reminder logic
+  ran, resulting in "Total processed: 0" even for long-overdue learners.
+
+  Both SQL queries now use `COALESCE(NULLIF(ue.timestart, 0), ue.timecreated)` as the
+  effective enrollment date. When `timestart = 0`, the enrollment record's creation
+  timestamp (`timecreated`) is used instead. The reminder threshold, cycle logic, and
+  `{enrolleddays}` variable are all based on this effective date.
+
+### Added
+- **`db/install.php` post-install hook** — seeds `local_course_reminder_log` on every fresh
+  install (including reinstall after uninstall) using the same logic as `db/upgrade.php`.
+  Prevents an email burst on the first cron run after a fresh install. `timesent` is set to
+  `now - cycledays` so reminders fire on the very first cron run without any cycle delay.
+
+### Fixed
+- **SQL Server compatibility — upgrade seeding queries** — `db/upgrade.php` seeding SQL
+  (both student and manager seed blocks) now uses
+  `COALESCE(NULLIF(ue.timestart, 0), ue.timecreated)` in the WHERE clause, consistent
+  with the main task queries. Previously `ue.timestart < :cutoff` caused all
+  `timestart = 0` enrollments to be unconditionally seeded regardless of their actual
+  enrollment age. All plugin SQL is now fully ANSI-compatible across MySQL, SQL Server,
+  and PostgreSQL.
+
 ## [1.4.8] - 2026-04-07
 
 ### Fixed

@@ -7,7 +7,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 ## Requirements
 
-- Moodle 5.0 or later (up to 5.1)
+- Moodle 4.4 – 5.0
 - Course completion tracking enabled on target courses
 - Custom user profile fields (required for Manager Escalation only):
   - `reporting_manager_email` — manager's email address
@@ -117,6 +117,7 @@ All JOIN conditions in the main enrollment query are covered by standard Moodle 
 ```
 course_reminder/
 ├── classes/task/send_reminder_task.php   # Scheduled task logic
+├── db/install.php                        # Post-install seed (prevents email burst on first cron)
 ├── db/install.xml                        # Database schema (fresh installs)
 ├── db/tasks.php                          # Task registration (daily at 17:00)
 ├── db/upgrade.php                        # Database migration (existing installs)

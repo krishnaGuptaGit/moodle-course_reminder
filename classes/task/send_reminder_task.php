@@ -118,14 +118,14 @@ class send_reminder_task extends scheduled_task {
 
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
-                       u.middlename, u.alternatename, ue.timestart
+                       u.middlename, u.alternatename,
+                       COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) AS timestart
                 FROM {user_enrolments} ue
                 JOIN {enrol} e ON e.id = ue.enrolid
                 JOIN {course} c ON c.id = e.courseid
                 JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
-                WHERE ue.timestart > 0
-                  AND ue.timestart < :cutoffend
+                WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoffend
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND ue.status = 0
                   AND e.status = 0
@@ -544,14 +544,14 @@ class send_reminder_task extends scheduled_task {
 
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
-                       u.middlename, u.alternatename, ue.timestart
+                       u.middlename, u.alternatename,
+                       COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) AS timestart
                 FROM {user_enrolments} ue
                 JOIN {enrol} e ON e.id = ue.enrolid
                 JOIN {course} c ON c.id = e.courseid
                 JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
-                WHERE ue.timestart > 0
-                  AND ue.timestart < :cutoffend
+                WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoffend
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND ue.status = 0
                   AND e.status = 0
@@ -624,9 +624,7 @@ class send_reminder_task extends scheduled_task {
                     continue;
                 }
 
-                $enrollment->enrolleddays = $enrollment->timestart > 0
-                    ? floor((time() - $enrollment->timestart) / 86400)
-                    : $studentdays;
+                $enrollment->enrolleddays = (int) floor((time() - $enrollment->timestart) / 86400);
                 $enrollment->employeename = fullname($enrollment);
                 $enrollment->logrecord    = $logrecord;
 

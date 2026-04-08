@@ -51,9 +51,9 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
             $dbman->create_table($table);
         }
 
-        // Seed the log table for all currently overdue, incomplete enrollments so that the
-        // first task run after this upgrade does not send a burst of reminders to every user
-        // who was already overdue before v1.4 was installed.
+        // Seed the log table for all currently overdue, incomplete enrollments.
+        // timesent is set to (now - cycledays) so that the very first cron run after
+        // this upgrade sends reminders to all overdue users without any additional delay.
         $now = time();
 
         $studentdays = (int) get_config('local_course_reminder', 'student_days');
@@ -64,6 +64,14 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
         if ($managerdays <= 0) {
             $managerdays = 7;
         }
+        $studentcycledays = (int) get_config('local_course_reminder', 'student_cycledays');
+        if ($studentcycledays <= 0) {
+            $studentcycledays = 7;
+        }
+        $managercycledays = (int) get_config('local_course_reminder', 'manager_cycledays');
+        if ($managercycledays <= 0) {
+            $managercycledays = 7;
+        }
 
         // Student seed — non-completed enrollments older than student_days.
         $cutoffstudent = $now - ($studentdays * 86400);
@@ -73,7 +81,7 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
                 JOIN {user} u ON u.id = ue.userid
                 LEFT JOIN {course_completions} cc
                        ON cc.userid = ue.userid AND cc.course = e.courseid AND cc.timecompleted > 0
-                WHERE ue.timestart < :cutoff
+                WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoff
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND u.deleted = 0
                   AND u.suspended = 0
@@ -90,7 +98,7 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
                 $rec->userid       = $row->userid;
                 $rec->courseid     = $row->courseid;
                 $rec->remindertype = 'student';
-                $rec->timesent     = $now;
+                $rec->timesent     = $now - ($studentcycledays * 86400);
                 $DB->insert_record('local_course_reminder_log', $rec);
             }
         }
@@ -103,7 +111,7 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
                 JOIN {user} u ON u.id = ue.userid
                 LEFT JOIN {course_completions} cc
                        ON cc.userid = ue.userid AND cc.course = e.courseid AND cc.timecompleted > 0
-                WHERE ue.timestart < :cutoff
+                WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoff
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND u.deleted = 0
                   AND u.suspended = 0
@@ -120,7 +128,7 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
                 $rec->userid       = $row->userid;
                 $rec->courseid     = $row->courseid;
                 $rec->remindertype = 'manager';
-                $rec->timesent     = $now;
+                $rec->timesent     = $now - ($managercycledays * 86400);
                 $DB->insert_record('local_course_reminder_log', $rec);
             }
         }
