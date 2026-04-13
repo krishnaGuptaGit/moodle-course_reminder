@@ -27,18 +27,15 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Course Escalation Reminder';
 $string['taskname'] = 'Send Course Escalation Reminder';
 
-// Global settings.
 $string['enable'] = 'Enable Plugin';
 $string['enable_desc'] = 'Master switch to enable or disable all course reminder features';
 $string['processing_start_date'] = 'Processing Start Date';
 $string['processing_start_date_desc'] = 'Only enrolments created or started on or after this date will be processed. Leave blank to disable the guard and process all enrolments regardless of age.';
 $string['processing_start_date_invalid'] = 'Invalid date. Please select a valid date using the date picker.';
 
-// Shared email type options.
 $string['emailtype_individual'] = 'Individual Email';
 $string['emailtype_consolidated'] = 'Consolidated Email';
 
-// Manager Escalation Settings.
 $string['managersettings'] = 'Manager Escalation Settings';
 $string['manager_enable'] = 'Enable Manager Escalation Reminders';
 $string['manager_enable_desc'] = 'Send reminder emails to managers when their subordinates have not completed enrolled courses';
@@ -58,13 +55,11 @@ $string['manager_emailsubjectconsolidated_desc'] = 'Available variables: {manage
 $string['manager_emailbodyconsolidated'] = 'Consolidated Email Body';
 $string['manager_emailbodyconsolidated_desc'] = 'Available variables: {managername}, {employeelist}, {sitename}';
 
-// Manager email fallback defaults (used when config value is not yet saved).
 $string['manager_emailsubjectindividual_default'] = 'Course Escalation Reminder: {coursename}';
 $string['manager_emailbodyindividual_default'] = "Dear {managername},\n\nThis is a reminder that {username} has been enrolled in the course \"{coursename}\" for {days} days but has not yet completed it.\n\nPlease follow up with the learner to ensure they complete their training.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
 $string['manager_emailsubjectconsolidated_default'] = 'Course Escalation Reminder';
 $string['manager_emailbodyconsolidated_default'] = "Dear {managername},\n\nThe following employees have incomplete courses:\n\n{employeelist}\n\nPlease follow up with them to ensure they complete their training.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
 
-// Student Reminder Settings.
 $string['studentremindersettings'] = 'Student Reminder Settings';
 $string['student_enable'] = 'Enable Student Reminders';
 $string['student_enable_desc'] = 'Send reminder emails directly to students who have not completed their enrolled course';
@@ -84,13 +79,11 @@ $string['student_emailsubjectconsolidated_desc'] = 'Available variables: {userna
 $string['student_emailbodyconsolidated'] = 'Consolidated Email Body';
 $string['student_emailbodyconsolidated_desc'] = 'Available variables: {username}, {courselist}, {days}, {sitename}';
 
-// Student email fallback defaults (used when config value is not yet saved).
 $string['student_emailsubjectindividual_default'] = 'Reminder: Complete Your Course - {coursename}';
 $string['student_emailbodyindividual_default'] = "Dear {username},\n\nThis is a reminder that you have been enrolled in the course \"{coursename}\" for {days} days but have not yet completed it.\n\nPlease log in and continue your training at your earliest convenience.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
 $string['student_emailsubjectconsolidated_default'] = 'Reminder: Complete Your Courses';
 $string['student_emailbodyconsolidated_default'] = "Dear {username},\n\nThe following courses require your attention:\n\n{courselist}\n\nPlease log in and complete your training at your earliest convenience.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
 
-// Privacy API.
 $string['privacy:metadata:local_course_reminder_log'] = 'Records when reminder emails were last sent to or about a user for each enrolled course.';
 $string['privacy:metadata:local_course_reminder_log:userid'] = 'The ID of the user the reminder relates to.';
 $string['privacy:metadata:local_course_reminder_log:courseid'] = 'The ID of the course the reminder relates to.';

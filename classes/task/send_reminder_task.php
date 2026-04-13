@@ -39,7 +39,6 @@ use stdClass;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class send_reminder_task extends scheduled_task {
-
     /**
      * Returns the human-readable task name.
      *

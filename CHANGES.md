@@ -2,6 +2,41 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.5.0] - 2026-04-13
+
+### Added
+- **Processing Start Date — HTML5 date picker** (`classes/admin/admin_setting_configdate.php`) —
+  the Processing Start Date setting now renders as a native browser date picker instead of a
+  free-text input. Date range is restricted to 2 years back and 1 year forward from today.
+  Invalid dates are rejected at save time with an inline error message. Clearing the field
+  disables the guard. Value is stored as a `YYYY-MM-DD` string and converted to a UTC
+  midnight timestamp before the SQL query runs.
+
+- **GitHub Actions CI** (`.github/workflows/ci.yml`) — automated checks on every push to
+  `main` and on all pull requests. Covers Moodle 4.4, 5.0, and 5.1 across PHP 8.1–8.4 with
+  PostgreSQL and MariaDB. Checks: PHP lint, PHPCS (0 warnings), PHPDoc (0 warnings), plugin
+  structure validation, and upgrade savepoint verification.
+
+### Fixed
+- **CRLF line endings corrected** — `send_reminder_task.php`, `tasks.php`, `version.php`,
+  `settings.php`, `lang/en/local_course_reminder.php`, and `db/upgrade.php` have been
+  converted from Windows CRLF (`\r\n`) to Unix LF (`\n`). CRLF was causing PHPCS to report
+  invalid EOL characters, malformed opening comment blocks, and false trailing-whitespace
+  errors inside multiline strings.
+
+- **Lang file section comments removed** — inline section comments
+  (`// Global settings.`, `// Manager Escalation Settings.`, etc.) have been removed from
+  `lang/en/local_course_reminder.php`. Moodle's lang file checker requires pure
+  `$string` data assignments with no comments.
+
+- **`MOODLE_INTERNAL` guard removed from `db/install.php` and `db/upgrade.php`** — both
+  files only define a single function and have no top-level side effects. The Moodle PHPCS
+  sniff flags the guard as unexpected in this pattern; it has been removed from both files.
+
+- **Blank line after class opening brace removed** — `send_reminder_task.php` had a blank
+  line immediately after `class send_reminder_task extends scheduled_task {`, which violates
+  the Moodle coding standard.
+
 ## [1.4.9] - 2026-04-08
 
 ### Fixed
