@@ -16,13 +16,6 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
   timestamp (`timecreated`) is used instead. The reminder threshold, cycle logic, and
   `{enrolleddays}` variable are all based on this effective date.
 
-### Added
-- **`db/install.php` post-install hook** — seeds `local_course_reminder_log` on every fresh
-  install (including reinstall after uninstall) using the same logic as `db/upgrade.php`.
-  Prevents an email burst on the first cron run after a fresh install. `timesent` is set to
-  `now - cycledays` so reminders fire on the very first cron run without any cycle delay.
-
-### Fixed
 - **SQL Server compatibility — upgrade seeding queries** — `db/upgrade.php` seeding SQL
   (both student and manager seed blocks) now uses
   `COALESCE(NULLIF(ue.timestart, 0), ue.timecreated)` in the WHERE clause, consistent
@@ -30,6 +23,40 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
   `timestart = 0` enrollments to be unconditionally seeded regardless of their actual
   enrollment age. All plugin SQL is now fully ANSI-compatible across MySQL, SQL Server,
   and PostgreSQL.
+
+- **Hard-coded email fallback strings removed** — fallback email subjects and bodies in
+  `send_reminder_task.php` (used when admin settings have not yet been saved) are now
+  sourced via `get_string()` from the language file instead of being hardcoded PHP strings.
+  This enables translation and passes Moodle plugin repository validation.
+
+- **Language file string syntax corrected** — all `$string` assignments in
+  `lang/en/local_course_reminder.php` that previously used multi-line concatenation (`.`)
+  have been rewritten as single unbroken string literals, satisfying the Moodle plugin
+  checker requirement for pure data-assignment lang files.
+
+- **Copyright tags corrected** — all plugin files now carry
+  `@copyright 2026 Krishna Gupta`.
+
+### Added
+- **Privacy API** (`classes/privacy/provider.php`) — implements
+  `\core_privacy\local\metadata\provider`, `\core_privacy\local\request\plugin\provider`,
+  and `\core_privacy\local\request\core_userlist_provider`. Declares the
+  `local_course_reminder_log` table in the site privacy registry and supports data export
+  and deletion per Moodle's GDPR compliance requirements.
+
+- **Processing Start Date** — new global config setting (`processing_start_date`). Renders
+  as an HTML5 date picker (selectable range: 2 years back to 1 year forward from today).
+  When set, both manager and student SQL queries exclude any enrolment whose effective start
+  date falls before this value. Prevents legacy enrolments on open-ended courses from being
+  swept into ongoing daily reminder runs. Leave blank (default) to disable the guard and
+  process all enrolments regardless of age. Invalid or blank values are handled gracefully —
+  the guard is disabled and the task continues normally.
+
+- **Reminder log seeding moved to background adhoc task** (`classes/task/seed_reminder_log_task.php`)
+  — `db/install.php` and `db/upgrade.php` no longer run a site-wide enrolment scan inline.
+  Instead they queue an adhoc task that seeds the `local_course_reminder_log` table in the
+  background after Moodle's cron next runs. This keeps install and upgrade fast and
+  non-blocking on large sites.
 
 ## [1.4.8] - 2026-04-07
 

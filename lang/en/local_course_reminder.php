@@ -18,7 +18,7 @@
  * Language strings.
  *
  * @package    local_course_reminder
- * @copyright  2025 Your Organisation
+ * @copyright  2026 Krishna Gupta
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -30,6 +30,9 @@ $string['taskname'] = 'Send Course Escalation Reminder';
 // Global settings.
 $string['enable'] = 'Enable Plugin';
 $string['enable_desc'] = 'Master switch to enable or disable all course reminder features';
+$string['processing_start_date'] = 'Processing Start Date';
+$string['processing_start_date_desc'] = 'Only enrolments created or started on or after this date will be processed. Leave blank to disable the guard and process all enrolments regardless of age.';
+$string['processing_start_date_invalid'] = 'Invalid date. Please select a valid date using the date picker.';
 
 // Shared email type options.
 $string['emailtype_individual'] = 'Individual Email';
@@ -40,53 +43,56 @@ $string['managersettings'] = 'Manager Escalation Settings';
 $string['manager_enable'] = 'Enable Manager Escalation Reminders';
 $string['manager_enable_desc'] = 'Send reminder emails to managers when their subordinates have not completed enrolled courses';
 $string['manager_days'] = 'Manager Reminder Days';
-$string['manager_days_desc'] = 'Number of days after enrollment before sending the first escalation reminder to the manager. '
-    . 'The enrollment day is excluded from the count. '
-    . 'Example: if set to 3 and a learner enrolls on 1 Apr, the first reminder is sent on 4 Apr.';
+$string['manager_days_desc'] = 'Number of days after enrollment before sending the first escalation reminder to the manager. The enrollment day is excluded from the count. Example: if set to 3 and a learner enrolls on 1 Apr, the first reminder is sent on 4 Apr.';
 $string['manager_cycledays'] = 'Manager Reminder Cycle Days';
-$string['manager_cycledays_desc'] = 'Number of days between repeat reminders to the manager '
-    . 'after the first reminder has been sent. '
-    . 'Set to 1 for daily reminders. Example: if set to 2 and the first reminder was sent on 4 Apr, '
-    . 'the next reminder is sent on 6 Apr.';
+$string['manager_cycledays_desc'] = 'Number of days between repeat reminders to the manager after the first reminder has been sent. Set to 1 for daily reminders. Example: if set to 2 and the first reminder was sent on 4 Apr, the next reminder is sent on 6 Apr.';
 $string['manager_emailtype'] = 'Email Type';
 $string['manager_emailtype_desc'] = 'Choose whether to send individual emails or a consolidated email per manager';
 $string['manager_emailsettings'] = 'Manager Email Templates';
 $string['manager_emailsubjectindividual'] = 'Individual Email Subject';
-$string['manager_emailsubjectindividual_desc'] = 'Available variables: {coursename}, {username}, {managername}, '
-    . '{days}, {enrolleddays}, {sitename}';
+$string['manager_emailsubjectindividual_desc'] = 'Available variables: {coursename}, {username}, {managername}, {days}, {enrolleddays}, {sitename}';
 $string['manager_emailbodyindividual'] = 'Individual Email Body';
-$string['manager_emailbodyindividual_desc'] = 'Available variables: {coursename}, {username}, {managername}, '
-    . '{days}, {enrolleddays}, {sitename}. '
-    . '{days} = configured threshold; {enrolleddays} = actual days since enrollment.';
+$string['manager_emailbodyindividual_desc'] = 'Available variables: {coursename}, {username}, {managername}, {days}, {enrolleddays}, {sitename}. {days} = configured threshold; {enrolleddays} = actual days since enrollment.';
 $string['manager_emailsubjectconsolidated'] = 'Consolidated Email Subject';
 $string['manager_emailsubjectconsolidated_desc'] = 'Available variables: {managername}, {sitename}';
 $string['manager_emailbodyconsolidated'] = 'Consolidated Email Body';
 $string['manager_emailbodyconsolidated_desc'] = 'Available variables: {managername}, {employeelist}, {sitename}';
+
+// Manager email fallback defaults (used when config value is not yet saved).
+$string['manager_emailsubjectindividual_default'] = 'Course Escalation Reminder: {coursename}';
+$string['manager_emailbodyindividual_default'] = "Dear {managername},\n\nThis is a reminder that {username} has been enrolled in the course \"{coursename}\" for {days} days but has not yet completed it.\n\nPlease follow up with the learner to ensure they complete their training.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
+$string['manager_emailsubjectconsolidated_default'] = 'Course Escalation Reminder';
+$string['manager_emailbodyconsolidated_default'] = "Dear {managername},\n\nThe following employees have incomplete courses:\n\n{employeelist}\n\nPlease follow up with them to ensure they complete their training.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
 
 // Student Reminder Settings.
 $string['studentremindersettings'] = 'Student Reminder Settings';
 $string['student_enable'] = 'Enable Student Reminders';
 $string['student_enable_desc'] = 'Send reminder emails directly to students who have not completed their enrolled course';
 $string['student_days'] = 'Student Reminder Days';
-$string['student_days_desc'] = 'Number of days after enrollment before sending the first reminder to the student. '
-    . 'The enrollment day is excluded from the count. '
-    . 'Example: if set to 3 and a student enrolls on 1 Apr, the first reminder is sent on 4 Apr.';
+$string['student_days_desc'] = 'Number of days after enrollment before sending the first reminder to the student. The enrollment day is excluded from the count. Example: if set to 3 and a student enrolls on 1 Apr, the first reminder is sent on 4 Apr.';
 $string['student_cycledays'] = 'Student Reminder Cycle Days';
-$string['student_cycledays_desc'] = 'Number of days between repeat reminders to the student '
-    . 'after the first reminder has been sent. '
-    . 'Set to 1 for daily reminders. Example: if set to 2 and the first reminder was sent on 4 Apr, '
-    . 'the next reminder is sent on 6 Apr.';
+$string['student_cycledays_desc'] = 'Number of days between repeat reminders to the student after the first reminder has been sent. Set to 1 for daily reminders. Example: if set to 2 and the first reminder was sent on 4 Apr, the next reminder is sent on 6 Apr.';
 $string['student_emailtype'] = 'Email Type';
-$string['student_emailtype_desc'] = 'Choose whether to send one email per course (individual) '
-    . 'or a single consolidated email per student';
+$string['student_emailtype_desc'] = 'Choose whether to send one email per course (individual) or a single consolidated email per student';
 $string['student_emailsettings'] = 'Student Email Templates';
 $string['student_emailsubjectindividual'] = 'Individual Email Subject';
-$string['student_emailsubjectindividual_desc'] = 'Available variables: {coursename}, {username}, '
-    . '{days}, {enrolleddays}, {sitename}';
+$string['student_emailsubjectindividual_desc'] = 'Available variables: {coursename}, {username}, {days}, {enrolleddays}, {sitename}';
 $string['student_emailbodyindividual'] = 'Individual Email Body';
-$string['student_emailbodyindividual_desc'] = 'Available variables: {coursename}, {username}, {days}, {enrolleddays}, {sitename}. '
-    . '{days} = configured threshold; {enrolleddays} = actual days since enrollment.';
+$string['student_emailbodyindividual_desc'] = 'Available variables: {coursename}, {username}, {days}, {enrolleddays}, {sitename}. {days} = configured threshold; {enrolleddays} = actual days since enrollment.';
 $string['student_emailsubjectconsolidated'] = 'Consolidated Email Subject';
 $string['student_emailsubjectconsolidated_desc'] = 'Available variables: {username}, {sitename}';
 $string['student_emailbodyconsolidated'] = 'Consolidated Email Body';
 $string['student_emailbodyconsolidated_desc'] = 'Available variables: {username}, {courselist}, {days}, {sitename}';
+
+// Student email fallback defaults (used when config value is not yet saved).
+$string['student_emailsubjectindividual_default'] = 'Reminder: Complete Your Course - {coursename}';
+$string['student_emailbodyindividual_default'] = "Dear {username},\n\nThis is a reminder that you have been enrolled in the course \"{coursename}\" for {days} days but have not yet completed it.\n\nPlease log in and continue your training at your earliest convenience.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
+$string['student_emailsubjectconsolidated_default'] = 'Reminder: Complete Your Courses';
+$string['student_emailbodyconsolidated_default'] = "Dear {username},\n\nThe following courses require your attention:\n\n{courselist}\n\nPlease log in and complete your training at your earliest convenience.\n\nThis is an automated message from {sitename}.\n\nBest regards,\nLearning Management System";
+
+// Privacy API.
+$string['privacy:metadata:local_course_reminder_log'] = 'Records when reminder emails were last sent to or about a user for each enrolled course.';
+$string['privacy:metadata:local_course_reminder_log:userid'] = 'The ID of the user the reminder relates to.';
+$string['privacy:metadata:local_course_reminder_log:courseid'] = 'The ID of the course the reminder relates to.';
+$string['privacy:metadata:local_course_reminder_log:remindertype'] = 'The type of reminder sent: student (direct to learner) or manager (escalation to reporting manager).';
+$string['privacy:metadata:local_course_reminder_log:timesent'] = 'The Unix timestamp of when the last reminder email was successfully sent.';

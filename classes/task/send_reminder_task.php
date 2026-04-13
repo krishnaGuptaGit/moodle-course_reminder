@@ -18,7 +18,7 @@
  * Scheduled task class for sending course reminder emails.
  *
  * @package    local_course_reminder
- * @copyright  2025 Your Organisation
+ * @copyright  2026 Krishna Gupta
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -35,7 +35,7 @@ use stdClass;
  * employee's reporting manager) and student reminder (notifies the learner directly).
  *
  * @package    local_course_reminder
- * @copyright  2025 Your Organisation
+ * @copyright  2026 Krishna Gupta
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class send_reminder_task extends scheduled_task {
@@ -112,9 +112,20 @@ class send_reminder_task extends scheduled_task {
         //
         // Note: strtotime('today midnight') resolves relative to the server's configured
         // timezone (php.ini date.timezone). UTC is recommended to avoid DST-related drift.
-        $now           = time();
-        $todaymidnight = strtotime('today midnight');
-        $cutoffend     = $todaymidnight - (($days - 1) * 86400);
+        $now               = time();
+        $todaymidnight     = strtotime('today midnight');
+        $cutoffend         = $todaymidnight - (($days - 1) * 86400);
+        $processstartstr  = get_config('local_course_reminder', 'processing_start_date');
+        $processstartdate = 0;
+        if (!empty($processstartstr)) {
+            $parseddate = \DateTime::createFromFormat('Y-m-d', $processstartstr);
+            if ($parseddate && $parseddate->format('Y-m-d') === $processstartstr) {
+                $processstartdate = (int) strtotime($processstartstr . ' 00:00:00 UTC');
+            } else {
+                mtrace('Warning: Processing Start Date "' . $processstartstr
+                    . '" is not a valid YYYY-MM-DD date. Guard disabled — all enrolments will be processed.');
+            }
+        }
 
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
@@ -126,6 +137,7 @@ class send_reminder_task extends scheduled_task {
                 JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
                 WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoffend
+                  AND (:processstartdate = 0 OR COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) >= :processstartdate)
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND ue.status = 0
                   AND e.status = 0
@@ -139,10 +151,11 @@ class send_reminder_task extends scheduled_task {
                   AND (c.enddate = 0 OR c.enddate > :nowend)";
 
         $enrollments = $DB->get_recordset_sql($sql, [
-            'cutoffend' => $cutoffend,
-            'now'       => $now,
-            'nowstart'  => $now,
-            'nowend'    => $now,
+            'cutoffend'        => $cutoffend,
+            'processstartdate' => $processstartdate,
+            'now'              => $now,
+            'nowstart'         => $now,
+            'nowend'           => $now,
         ]);
 
         $processed = $emailssent = $skippedcompleted = 0;
@@ -404,17 +417,12 @@ class send_reminder_task extends scheduled_task {
 
         $subjecttemplate = get_config('local_course_reminder', 'manager_emailsubjectindividual');
         if (empty($subjecttemplate)) {
-            $subjecttemplate = 'Course Escalation Reminder: {coursename}';
+            $subjecttemplate = get_string('manager_emailsubjectindividual_default', 'local_course_reminder');
         }
 
         $bodytemplate = get_config('local_course_reminder', 'manager_emailbodyindividual');
         if (empty($bodytemplate)) {
-            $bodytemplate = "Dear {managername},\n\n"
-                . "This is a reminder that {username} has been enrolled in"
-                . " the course \"{coursename}\" for {days} days but has not yet completed it.\n\n"
-                . "Please follow up with the learner to ensure they complete their training.\n\n"
-                . "This is an automated message from {sitename}.\n\n"
-                . "Best regards,\nLearning Management System";
+            $bodytemplate = get_string('manager_emailbodyindividual_default', 'local_course_reminder');
         }
 
         $replacements = [
@@ -466,17 +474,12 @@ class send_reminder_task extends scheduled_task {
 
         $subjecttemplate = get_config('local_course_reminder', 'manager_emailsubjectconsolidated');
         if (empty($subjecttemplate)) {
-            $subjecttemplate = 'Course Escalation Reminder';
+            $subjecttemplate = get_string('manager_emailsubjectconsolidated_default', 'local_course_reminder');
         }
 
         $bodytemplate = get_config('local_course_reminder', 'manager_emailbodyconsolidated');
         if (empty($bodytemplate)) {
-            $bodytemplate = "Dear {managername},\n\n"
-                . "The following employees have incomplete courses:\n\n"
-                . "{employeelist}\n\n"
-                . "Please follow up with them to ensure they complete their training.\n\n"
-                . "This is an automated message from {sitename}.\n\n"
-                . "Best regards,\nLearning Management System";
+            $bodytemplate = get_string('manager_emailbodyconsolidated_default', 'local_course_reminder');
         }
 
         $employeelist = '';
@@ -538,9 +541,20 @@ class send_reminder_task extends scheduled_task {
         //
         // Note: strtotime('today midnight') resolves relative to the server's configured
         // timezone (php.ini date.timezone). UTC is recommended to avoid DST-related drift.
-        $now           = time();
-        $todaymidnight = strtotime('today midnight');
-        $cutoffend     = $todaymidnight - (($studentdays - 1) * 86400);
+        $now              = time();
+        $todaymidnight    = strtotime('today midnight');
+        $cutoffend        = $todaymidnight - (($studentdays - 1) * 86400);
+        $processstartstr  = get_config('local_course_reminder', 'processing_start_date');
+        $processstartdate = 0;
+        if (!empty($processstartstr)) {
+            $parseddate = \DateTime::createFromFormat('Y-m-d', $processstartstr);
+            if ($parseddate && $parseddate->format('Y-m-d') === $processstartstr) {
+                $processstartdate = (int) strtotime($processstartstr . ' 00:00:00 UTC');
+            } else {
+                mtrace('Warning: Processing Start Date "' . $processstartstr
+                    . '" is not a valid YYYY-MM-DD date. Guard disabled — all enrolments will be processed.');
+            }
+        }
 
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
@@ -552,6 +566,7 @@ class send_reminder_task extends scheduled_task {
                 JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
                 WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoffend
+                  AND (:processstartdate = 0 OR COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) >= :processstartdate)
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND ue.status = 0
                   AND e.status = 0
@@ -565,10 +580,11 @@ class send_reminder_task extends scheduled_task {
                   AND (c.enddate = 0 OR c.enddate > :nowend)";
 
         $params = [
-            'cutoffend' => $cutoffend,
-            'now'       => $now,
-            'nowstart'  => $now,
-            'nowend'    => $now,
+            'cutoffend'        => $cutoffend,
+            'processstartdate' => $processstartdate,
+            'now'              => $now,
+            'nowstart'         => $now,
+            'nowend'           => $now,
         ];
 
         $enrollments = $DB->get_recordset_sql($sql, $params);
@@ -716,17 +732,12 @@ class send_reminder_task extends scheduled_task {
 
         $subjecttemplate = get_config('local_course_reminder', 'student_emailsubjectindividual');
         if (empty($subjecttemplate)) {
-            $subjecttemplate = 'Reminder: Complete Your Course - {coursename}';
+            $subjecttemplate = get_string('student_emailsubjectindividual_default', 'local_course_reminder');
         }
 
         $bodytemplate = get_config('local_course_reminder', 'student_emailbodyindividual');
         if (empty($bodytemplate)) {
-            $bodytemplate = "Dear {username},\n\n"
-                . "This is a reminder that you have been enrolled in the course"
-                . " \"{coursename}\" for {days} days but have not yet completed it.\n\n"
-                . "Please log in and continue your training at your earliest convenience.\n\n"
-                . "This is an automated message from {sitename}.\n\n"
-                . "Best regards,\nLearning Management System";
+            $bodytemplate = get_string('student_emailbodyindividual_default', 'local_course_reminder');
         }
 
         $replacements = [
@@ -768,17 +779,12 @@ class send_reminder_task extends scheduled_task {
 
         $subjecttemplate = get_config('local_course_reminder', 'student_emailsubjectconsolidated');
         if (empty($subjecttemplate)) {
-            $subjecttemplate = 'Reminder: Complete Your Courses';
+            $subjecttemplate = get_string('student_emailsubjectconsolidated_default', 'local_course_reminder');
         }
 
         $bodytemplate = get_config('local_course_reminder', 'student_emailbodyconsolidated');
         if (empty($bodytemplate)) {
-            $bodytemplate = "Dear {username},\n\n"
-                . "The following courses require your attention:\n\n"
-                . "{courselist}\n\n"
-                . "Please log in and complete your training at your earliest convenience.\n\n"
-                . "This is an automated message from {sitename}.\n\n"
-                . "Best regards,\nLearning Management System";
+            $bodytemplate = get_string('student_emailbodyconsolidated_default', 'local_course_reminder');
         }
 
         $courselist = '';

@@ -27,6 +27,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 | Setting | Description | Default |
 |---|---|---|
 | Enable Plugin | Master switch — disables all features when off | Off |
+| Processing Start Date | HTML5 date picker (range: 2 years back to 1 year forward). Only enrolments created/started on or after the selected date are processed. Leave blank to process all enrolments regardless of age. | Blank (disabled) |
 
 ### Manager Escalation
 
@@ -78,6 +79,7 @@ Both **Reminder Days** and **Cycle Days** use exclusion-based counting — the s
 
 1. A scheduled task runs daily at 17:00 server time.
 2. If the global **Enable Plugin** setting is off, the task exits immediately.
+3. If **Processing Start Date** is set, enrolments created/started before that date are excluded.
 
 ### Manager Escalation
 
@@ -116,11 +118,19 @@ All JOIN conditions in the main enrollment query are covered by standard Moodle 
 
 ```
 course_reminder/
-├── classes/task/send_reminder_task.php   # Scheduled task logic
-├── db/install.php                        # Post-install seed (prevents email burst on first cron)
-├── db/install.xml                        # Database schema (fresh installs)
-├── db/tasks.php                          # Task registration (daily at 17:00)
-├── db/upgrade.php                        # Database migration (existing installs)
+├── classes/
+│   ├── admin/
+│   │   └── admin_setting_configdate.php  # Custom HTML5 date picker admin setting
+│   ├── privacy/
+│   │   └── provider.php                  # Privacy API — data export and deletion
+│   └── task/
+│       ├── seed_reminder_log_task.php    # Adhoc task — seeds log after install/upgrade
+│       └── send_reminder_task.php        # Scheduled task — daily reminder logic
+├── db/
+│   ├── install.php                       # Post-install hook — queues seed adhoc task
+│   ├── install.xml                       # Database schema (fresh installs)
+│   ├── tasks.php                         # Task registration (daily at 17:00)
+│   └── upgrade.php                       # Database migration (existing installs)
 ├── lang/en/local_course_reminder.php     # Language strings
 ├── settings.php                          # Admin settings page
 └── version.php                           # Plugin metadata

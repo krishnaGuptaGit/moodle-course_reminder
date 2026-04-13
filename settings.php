@@ -18,7 +18,7 @@
  * Admin settings for local_course_reminder.
  *
  * @package    local_course_reminder
- * @copyright  2025 Your Organisation
+ * @copyright  2026 Krishna Gupta
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -35,6 +35,14 @@ if ($hassiteconfig) {
         get_string('enable', 'local_course_reminder'),
         get_string('enable_desc', 'local_course_reminder'),
         0
+    ));
+
+    // Processing start date — lower-bound guard to exclude legacy enrolments.
+    $settings->add(new \local_course_reminder\admin\admin_setting_configdate(
+        'local_course_reminder/processing_start_date',
+        get_string('processing_start_date', 'local_course_reminder'),
+        get_string('processing_start_date_desc', 'local_course_reminder'),
+        ''
     ));
 
     $settings->add(new admin_setting_heading(

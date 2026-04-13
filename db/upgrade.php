@@ -18,7 +18,7 @@
  * Upgrade steps for local_course_reminder.
  *
  * @package    local_course_reminder
- * @copyright  2026 Your Organisation
+ * @copyright  2026 Krishna Gupta
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -51,87 +51,10 @@ function xmldb_local_course_reminder_upgrade($oldversion) {
             $dbman->create_table($table);
         }
 
-        // Seed the log table for all currently overdue, incomplete enrollments.
-        // timesent is set to (now - cycledays) so that the very first cron run after
-        // this upgrade sends reminders to all overdue users without any additional delay.
-        $now = time();
-
-        $studentdays = (int) get_config('local_course_reminder', 'student_days');
-        if ($studentdays <= 0) {
-            $studentdays = 7;
-        }
-        $managerdays = (int) get_config('local_course_reminder', 'manager_days');
-        if ($managerdays <= 0) {
-            $managerdays = 7;
-        }
-        $studentcycledays = (int) get_config('local_course_reminder', 'student_cycledays');
-        if ($studentcycledays <= 0) {
-            $studentcycledays = 7;
-        }
-        $managercycledays = (int) get_config('local_course_reminder', 'manager_cycledays');
-        if ($managercycledays <= 0) {
-            $managercycledays = 7;
-        }
-
-        // Student seed — non-completed enrollments older than student_days.
-        $cutoffstudent = $now - ($studentdays * 86400);
-        $sql = "SELECT DISTINCT ue.userid, e.courseid
-                FROM {user_enrolments} ue
-                JOIN {enrol} e ON e.id = ue.enrolid
-                JOIN {user} u ON u.id = ue.userid
-                LEFT JOIN {course_completions} cc
-                       ON cc.userid = ue.userid AND cc.course = e.courseid AND cc.timecompleted > 0
-                WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoff
-                  AND (ue.timeend = 0 OR ue.timeend > :now)
-                  AND u.deleted = 0
-                  AND u.suspended = 0
-                  AND cc.id IS NULL";
-        $rows = $DB->get_records_sql($sql, ['cutoff' => $cutoffstudent, 'now' => $now]);
-        foreach ($rows as $row) {
-            $exists = $DB->record_exists('local_course_reminder_log', [
-                'userid'       => $row->userid,
-                'courseid'     => $row->courseid,
-                'remindertype' => 'student',
-            ]);
-            if (!$exists) {
-                $rec = new \stdClass();
-                $rec->userid       = $row->userid;
-                $rec->courseid     = $row->courseid;
-                $rec->remindertype = 'student';
-                $rec->timesent     = $now - ($studentcycledays * 86400);
-                $DB->insert_record('local_course_reminder_log', $rec);
-            }
-        }
-
-        // Manager seed — same enrollments, seeded as 'manager' type.
-        $cutoffmanager = $now - ($managerdays * 86400);
-        $sql = "SELECT DISTINCT ue.userid, e.courseid
-                FROM {user_enrolments} ue
-                JOIN {enrol} e ON e.id = ue.enrolid
-                JOIN {user} u ON u.id = ue.userid
-                LEFT JOIN {course_completions} cc
-                       ON cc.userid = ue.userid AND cc.course = e.courseid AND cc.timecompleted > 0
-                WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoff
-                  AND (ue.timeend = 0 OR ue.timeend > :now)
-                  AND u.deleted = 0
-                  AND u.suspended = 0
-                  AND cc.id IS NULL";
-        $rows = $DB->get_records_sql($sql, ['cutoff' => $cutoffmanager, 'now' => $now]);
-        foreach ($rows as $row) {
-            $exists = $DB->record_exists('local_course_reminder_log', [
-                'userid'       => $row->userid,
-                'courseid'     => $row->courseid,
-                'remindertype' => 'manager',
-            ]);
-            if (!$exists) {
-                $rec = new \stdClass();
-                $rec->userid       = $row->userid;
-                $rec->courseid     = $row->courseid;
-                $rec->remindertype = 'manager';
-                $rec->timesent     = $now - ($managercycledays * 86400);
-                $DB->insert_record('local_course_reminder_log', $rec);
-            }
-        }
+        // Queue a background adhoc task to seed the reminder log for all currently
+        // overdue incomplete enrolments. Running the seeding as an adhoc task keeps
+        // the upgrade process lightweight and non-blocking.
+        \core\task\manager::queue_adhoc_task(new \local_course_reminder\task\seed_reminder_log_task());
 
         upgrade_plugin_savepoint(true, 2026040601, 'local', 'course_reminder');
     }

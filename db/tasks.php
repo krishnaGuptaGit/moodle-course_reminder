@@ -18,7 +18,7 @@
  * Scheduled tasks definition.
  *
  * @package    local_course_reminder
- * @copyright  2025 Your Organisation
+ * @copyright  2026 Krishna Gupta
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
