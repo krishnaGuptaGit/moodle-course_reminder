@@ -52,6 +52,10 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
   process all enrolments regardless of age. Invalid or blank values are handled gracefully —
   the guard is disabled and the task continues normally.
 
+- **GitHub Actions CI** (``.github/workflows/ci.yml``) — automated checks on every push and
+  pull request across Moodle 4.4, 5.0, and 5.1 (PHP 8.1–8.4, PostgreSQL and MariaDB).
+  Runs PHP lint, PHPCS, PHPDoc, plugin structure validation, and upgrade savepoint checks.
+
 - **Reminder log seeding moved to background adhoc task** (`classes/task/seed_reminder_log_task.php`)
   — `db/install.php` and `db/upgrade.php` no longer run a site-wide enrolment scan inline.
   Instead they queue an adhoc task that seeds the `local_course_reminder_log` table in the

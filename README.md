@@ -1,5 +1,7 @@
 # Course Escalation Reminder
 
+[![Moodle Plugin CI](https://github.com/YOUR_GITHUB_USERNAME/moodle-local_course_reminder/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/moodle-local_course_reminder/actions/workflows/ci.yml)
+
 A Moodle local plugin that sends automated email reminders when enrolled courses are not completed within a configurable number of days. It has two independent reminder features:
 
 - **Manager Escalation** — notifies the employee's reporting manager about incomplete courses
