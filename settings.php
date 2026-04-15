@@ -45,6 +45,16 @@ if ($hassiteconfig) {
         ''
     ));
 
+    // Excluded course categories — courses in selected categories (and their sub-categories) are never reminded.
+    $categoryoptions = \core_course_category::make_categories_list();
+    $settings->add(new admin_setting_configmultiselect(
+        'local_course_reminder/excluded_categoryids',
+        get_string('excluded_categoryids', 'local_course_reminder'),
+        get_string('excluded_categoryids_desc', 'local_course_reminder'),
+        [],
+        $categoryoptions
+    ));
+
     $settings->add(new admin_setting_heading(
         'local_course_reminder_managersettings',
         get_string('managersettings', 'local_course_reminder'),

@@ -30,6 +30,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 |---|---|---|
 | Enable Plugin | Master switch — disables all features when off | Off |
 | Processing Start Date | HTML5 date picker (range: 2 years back to 1 year forward). Only enrolments created/started on or after the selected date are processed. Leave blank to process all enrolments regardless of age. | Blank (disabled) |
+| Excluded Course Categories | Multi-select list of all course categories. Courses in selected categories — and all their sub-categories — are excluded from all reminders. Leave blank to exclude no categories. | None |
 
 ### Manager Escalation
 
@@ -81,29 +82,30 @@ Both **Reminder Days** and **Cycle Days** use exclusion-based counting — the s
 
 1. A scheduled task runs daily at 17:00 server time.
 2. If the global **Enable Plugin** setting is off, the task exits immediately.
-3. If **Processing Start Date** is set, enrolments created/started before that date are excluded.
+3. If **Processing Start Date** is set, enrolments created/started before that date are excluded at the SQL level.
+4. If **Excluded Course Categories** is set, courses in those categories (and all sub-categories) are excluded at the SQL level before any row is processed — they do not appear in skip counters.
 
 ### Manager Escalation
 
-3. Finds all active enrollments where the enrollment date is at least **Manager Reminder Days** before today (exclusion-based).
-4. For each enrollment, skips if:
+1. Finds all active enrollments where the enrollment date is at least **Manager Reminder Days** before today (exclusion-based), excluding any courses in the configured excluded categories.
+2. For each enrollment, skips if:
    - The course does not have completion tracking enabled.
    - The learner has already completed the course.
    - The learner has no `reporting_manager_email` profile field set.
    - The manager does not exist as a Moodle user.
    - A reminder was already sent and the **Manager Reminder Cycle Days** interval has not yet elapsed.
-5. Depending on **Email Type**, sends individual emails per learner or one consolidated email per manager.
-6. After each send, records the timestamp in `local_course_reminder_log`. Subsequent runs use this log to enforce the cycle interval and avoid re-sending before the cycle elapses.
+3. Depending on **Email Type**, sends individual emails per learner or one consolidated email per manager.
+4. After each send, records the timestamp in `local_course_reminder_log`. Subsequent runs use this log to enforce the cycle interval and avoid re-sending before the cycle elapses.
 
 ### Student Reminder
 
-3. Finds all active enrollments where the enrollment date is at least **Student Reminder Days** before today (exclusion-based).
-4. For each enrollment, skips if:
+1. Finds all active enrollments where the enrollment date is at least **Student Reminder Days** before today (exclusion-based), excluding any courses in the configured excluded categories.
+2. For each enrollment, skips if:
    - The learner has already completed the course.
    - A reminder was already sent and the **Student Reminder Cycle Days** interval has not yet elapsed.
-5. Reminders are sent to **all** incomplete learners — both those who have started the course and those who have not yet opened it.
-6. Depending on **Email Type**, sends one email per incomplete course or one consolidated email per student listing all courses requiring attention.
-7. After each send, records the timestamp in `local_course_reminder_log`.
+3. Reminders are sent to **all** incomplete learners — both those who have started the course and those who have not yet opened it.
+4. Depending on **Email Type**, sends one email per incomplete course or one consolidated email per student listing all courses requiring attention.
+5. After each send, records the timestamp in `local_course_reminder_log`.
 
 > **Duplicate prevention:** When a learner is enrolled in the same course via multiple enrolment methods, the course appears only once in consolidated emails.
 

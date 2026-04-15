@@ -64,9 +64,19 @@ class send_reminder_task extends scheduled_task {
             return;
         }
 
+        // Parse and expand excluded categories once — passed to both reminder paths.
+        $excludedstr    = get_config('local_course_reminder', 'excluded_categoryids');
+        $selectedcatids = [];
+        if (!empty($excludedstr)) {
+            $selectedcatids = array_values(array_filter(
+                array_map('intval', explode(',', $excludedstr))
+            ));
+        }
+        $excludedcategoryids = $this->get_all_excluded_category_ids($selectedcatids);
+
         $managerenabled = get_config('local_course_reminder', 'manager_enable');
         if ($managerenabled) {
-            $this->process_manager_reminders();
+            $this->process_manager_reminders($excludedcategoryids);
         }
 
         $studentreminderenabled = get_config('local_course_reminder', 'student_enable');
@@ -75,7 +85,7 @@ class send_reminder_task extends scheduled_task {
             if ($studentdays <= 0) {
                 $studentdays = 7;
             }
-            $this->process_student_reminders($studentdays);
+            $this->process_student_reminders($studentdays, $excludedcategoryids);
         }
     }
 
@@ -85,9 +95,10 @@ class send_reminder_task extends scheduled_task {
      * Queries all active enrolments past the configured threshold, checks completion
      * and cycle state, then sends individual or consolidated emails to managers.
      *
+     * @param int[] $excludedcategoryids Category IDs (including descendants) to exclude.
      * @return void
      */
-    private function process_manager_reminders() {
+    private function process_manager_reminders(array $excludedcategoryids): void {
         global $DB;
 
         $days = (int) get_config('local_course_reminder', 'manager_days');
@@ -126,6 +137,17 @@ class send_reminder_task extends scheduled_task {
             }
         }
 
+        $excludeclause = '';
+        $excludeparams = [];
+        if (!empty($excludedcategoryids)) {
+            [$excludeclause, $excludeparams] = $DB->get_in_or_equal(
+                $excludedcategoryids, SQL_PARAMS_NAMED, 'exccat', false
+            );
+            $excludeclause = 'AND c.category ' . $excludeclause;
+            mtrace('Excluding courses in ' . count($excludedcategoryids)
+                . ' category IDs (selected + sub-categories).');
+        }
+
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
                        u.middlename, u.alternatename,
@@ -147,15 +169,16 @@ class send_reminder_task extends scheduled_task {
                   AND c.id != 1
                   AND cc.visible = 1
                   AND (c.startdate = 0 OR c.startdate <= :nowstart)
-                  AND (c.enddate = 0 OR c.enddate > :nowend)";
+                  AND (c.enddate = 0 OR c.enddate > :nowend)
+                  {$excludeclause}";
 
-        $enrollments = $DB->get_recordset_sql($sql, [
+        $enrollments = $DB->get_recordset_sql($sql, array_merge([
             'cutoffend'        => $cutoffend,
             'processstartdate' => $processstartdate,
             'now'              => $now,
             'nowstart'         => $now,
             'nowend'           => $now,
-        ]);
+        ], $excludeparams));
 
         $processed = $emailssent = $skippedcompleted = 0;
         $skippednocompletion = $skippednomanager = $skippednotmoodleuser = $skippednotdue = 0;
@@ -519,10 +542,11 @@ class send_reminder_task extends scheduled_task {
      * Queries all active enrolments past the configured threshold, checks completion
      * and cycle state, then sends individual or consolidated emails to students.
      *
-     * @param int $studentdays Configured reminder threshold in days.
+     * @param int   $studentdays         Configured reminder threshold in days.
+     * @param int[] $excludedcategoryids Category IDs (including descendants) to exclude.
      * @return void
      */
-    private function process_student_reminders($studentdays) {
+    private function process_student_reminders(int $studentdays, array $excludedcategoryids): void {
         global $DB;
 
         $cycledays = (int) get_config('local_course_reminder', 'student_cycledays');
@@ -555,6 +579,17 @@ class send_reminder_task extends scheduled_task {
             }
         }
 
+        $excludeclause = '';
+        $excludeparams = [];
+        if (!empty($excludedcategoryids)) {
+            [$excludeclause, $excludeparams] = $DB->get_in_or_equal(
+                $excludedcategoryids, SQL_PARAMS_NAMED, 'exccat', false
+            );
+            $excludeclause = 'AND c.category ' . $excludeclause;
+            mtrace('Excluding courses in ' . count($excludedcategoryids)
+                . ' category IDs (selected + sub-categories).');
+        }
+
         $sql = "SELECT ue.id, ue.userid, ue.enrolid, e.courseid, c.fullname as coursename,
                        u.firstname, u.lastname, u.email, u.firstnamephonetic, u.lastnamephonetic,
                        u.middlename, u.alternatename,
@@ -576,15 +611,16 @@ class send_reminder_task extends scheduled_task {
                   AND c.id != 1
                   AND cc.visible = 1
                   AND (c.startdate = 0 OR c.startdate <= :nowstart)
-                  AND (c.enddate = 0 OR c.enddate > :nowend)";
+                  AND (c.enddate = 0 OR c.enddate > :nowend)
+                  {$excludeclause}";
 
-        $params = [
+        $params = array_merge([
             'cutoffend'        => $cutoffend,
             'processstartdate' => $processstartdate,
             'now'              => $now,
             'nowstart'         => $now,
             'nowend'           => $now,
-        ];
+        ], $excludeparams);
 
         $enrollments = $DB->get_recordset_sql($sql, $params);
 
@@ -761,6 +797,56 @@ class send_reminder_task extends scheduled_task {
             '',
             true
         );
+    }
+
+    /**
+     * Expands a list of category IDs to include all descendant categories.
+     *
+     * Uses Moodle's path column (e.g. /1/3/7) to find descendants via LIKE matching.
+     * Two DB queries: one to fetch selected categories' paths, one to find descendants.
+     *
+     * @param int[] $selectedids Category IDs chosen in admin settings.
+     * @return int[] Full list of category IDs to exclude (selected + all descendants).
+     */
+    private function get_all_excluded_category_ids(array $selectedids): array {
+        global $DB;
+
+        if (empty($selectedids)) {
+            return [];
+        }
+
+        // Query 1: fetch paths of the selected categories.
+        [$insql, $inparams] = $DB->get_in_or_equal($selectedids, SQL_PARAMS_NAMED, 'selcat');
+        $selectedcats = $DB->get_records_sql(
+            "SELECT id, path FROM {course_categories} WHERE id {$insql}",
+            $inparams
+        );
+
+        $allids         = [];
+        $pathconditions = [];
+        $pathparams     = [];
+        $idx            = 0;
+        foreach ($selectedcats as $cat) {
+            $allids[] = (int) $cat->id;
+            if (!empty($cat->path)) {
+                $pathconditions[] = $DB->sql_like('path', ':catpath' . $idx);
+                $pathparams['catpath' . $idx] = $cat->path . '/%';
+                $idx++;
+            }
+        }
+
+        // Query 2: fetch all descendants via path prefix matching.
+        if (!empty($pathconditions)) {
+            $descendants = $DB->get_records_sql(
+                'SELECT id FROM {course_categories} WHERE ' . implode(' OR ', $pathconditions),
+                $pathparams
+            );
+            foreach ($descendants as $desc) {
+                $allids[] = (int) $desc->id;
+            }
+        }
+
+        return array_values(array_unique($allids));
     }
 
     /**

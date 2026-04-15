@@ -2,6 +2,18 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.5.1] - 2026-04-15
+
+### Added
+- **Excluded Course Categories** — new global admin setting (`excluded_categoryids`) lets
+  administrators select one or more course categories whose courses should never receive
+  reminder emails. Uses a native Moodle multi-select populated from all categories with
+  visual hierarchy indentation. Sub-categories are automatically included: selecting a parent
+  category excludes all its descendants at runtime using Moodle's `path` column (2 DB queries,
+  no recursive PHP loops). The exclusion is applied as a dynamic `AND c.category NOT IN (...)`
+  SQL clause in both the manager and student query paths. When no categories are selected the
+  clause is omitted entirely, leaving existing behaviour unchanged.
+
 ## [1.5.0] - 2026-04-13
 
 ### Added

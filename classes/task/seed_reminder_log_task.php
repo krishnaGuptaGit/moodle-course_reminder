@@ -37,7 +37,6 @@ namespace local_course_reminder\task;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class seed_reminder_log_task extends \core\task\adhoc_task {
-
     /**
      * Executes the seed task.
      *

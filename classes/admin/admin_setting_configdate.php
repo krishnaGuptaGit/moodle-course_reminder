@@ -31,7 +31,6 @@ namespace local_course_reminder\admin;
  * Admin setting that renders an HTML5 date picker.
  */
 class admin_setting_configdate extends \admin_setting_configtext {
-
     /**
      * Constructor.
      *
