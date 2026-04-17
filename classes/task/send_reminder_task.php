@@ -158,7 +158,7 @@ class send_reminder_task extends scheduled_task {
                 JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
                 WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoffend
-                  AND (:processstartdate = 0 OR COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) >= :processstartdate)
+                  AND COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) >= :processstartdate
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND ue.status = 0
                   AND e.status = 0
@@ -600,7 +600,7 @@ class send_reminder_task extends scheduled_task {
                 JOIN {course_categories} cc ON cc.id = c.category
                 JOIN {user} u ON u.id = ue.userid
                 WHERE COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) < :cutoffend
-                  AND (:processstartdate = 0 OR COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) >= :processstartdate)
+                  AND COALESCE(NULLIF(ue.timestart, 0), ue.timecreated) >= :processstartdate
                   AND (ue.timeend = 0 OR ue.timeend > :now)
                   AND ue.status = 0
                   AND e.status = 0

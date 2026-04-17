@@ -2,6 +2,15 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
+## [1.5.1] - 2026-04-17
+
+### Fixed
+- **SQL Server param count error** — the `processing_start_date` guard used the same named
+  parameter (`:processstartdate`) twice in the WHERE clause, causing SQL Server to report
+  "Incorrect number of query parameters" whenever at least one category was excluded. Fixed
+  by simplifying the condition to `>= :processstartdate` (value `0` = Unix epoch means no
+  lower bound, which all timestamps satisfy — identical behaviour).
+
 ## [1.5.1] - 2026-04-15
 
 ### Added
