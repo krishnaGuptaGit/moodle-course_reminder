@@ -15,6 +15,21 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
   string, so `send_reminder_task.php` and the exclusion SQL are untouched. No database or config
   changes.
 
+- **Moodle 5.1 and 5.2 declared as supported** — `$plugin->supported` was `[404, 500]`, so Moodle
+  5.1/5.2 sites (branches `501`/`502`) showed "Plugin may not be compatible with Moodle version
+  502" on the Plugins overview page. This was cosmetic only — `$plugin->requires` is the real
+  install gate and was already satisfied — but the declaration now reads `[404, 502]`. Verified
+  against the Moodle 5.2.2 codebase: every core API the plugin calls is present and undeprecated
+  (`email_to_user`, `fullname`, `validate_email`, `core_user::*`, `html_writer`, `\context`,
+  `js_call_amd`, `core/form-autocomplete`, `make_categories_list`, all `admin_setting_*` classes,
+  all three privacy provider interfaces), and every DB table and column the reminder SQL reads
+  still exists. `$plugin->requires` stays at `2024043000` (Moodle 4.4).
+
+- **Installation instructions now cover the `public/` root layout** — Moodle 5.1 relocated the
+  codebase under `public/`, so on 5.1 and 5.2 the plugin belongs in `public/local/course_reminder/`
+  rather than `local/course_reminder/`. README step 1 previously gave only the pre-5.1 path, which
+  would leave the plugin undetected on a current site.
+
 ### Fixed
 - **SQL Server param count error** — the `processing_start_date` guard used the same named
   parameter (`:processstartdate`) twice in the WHERE clause, causing SQL Server to report
