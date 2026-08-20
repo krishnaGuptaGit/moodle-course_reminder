@@ -2,7 +2,18 @@
 
 All notable changes to the Course Escalation Reminder plugin will be documented in this file.
 
-## [1.5.1] - 2026-04-17
+## [1.5.2] - 2026-08-20
+
+### Changed
+- **Excluded Course Categories now renders as a searchable dropdown** — the setting was a plain
+  HTML `<select multiple>` list box, which meant ctrl-clicking and scrolling on sites with many
+  categories, and gave no indication of what was currently selected once the list scrolled. It is
+  now enhanced by Moodle's core `core/form-autocomplete` module via the new
+  `classes/admin/admin_setting_configmultiselect_autocomplete.php` class: a dropdown with a search
+  field, where each selected category is shown as a removable chip. Presentation only — the setting
+  still extends `admin_setting_configmultiselect` and still stores a comma-separated category ID
+  string, so `send_reminder_task.php` and the exclusion SQL are untouched. No database or config
+  changes.
 
 ### Fixed
 - **SQL Server param count error** — the `processing_start_date` guard used the same named
@@ -10,6 +21,11 @@ All notable changes to the Course Escalation Reminder plugin will be documented 
   "Incorrect number of query parameters" whenever at least one category was excluded. Fixed
   by simplifying the condition to `>= :processstartdate` (value `0` = Unix epoch means no
   lower bound, which all timestamps satisfy — identical behaviour).
+
+  This fix was made on 2026-04-17 and was originally logged as a second `1.5.1` entry, but
+  `version.php` was never bumped for it — it stayed on `2026041501`. It therefore had no release
+  identity of its own and is published here for the first time. Sites already running 1.5.1
+  receive it with this upgrade.
 
 ## [1.5.1] - 2026-04-15
 

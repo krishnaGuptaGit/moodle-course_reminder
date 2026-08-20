@@ -30,7 +30,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 |---|---|---|
 | Enable Plugin | Master switch — disables all features when off | Off |
 | Processing Start Date | HTML5 date picker (range: 2 years back to 1 year forward). Only enrolments created/started on or after the selected date are processed. Leave blank to process all enrolments regardless of age. | Blank (disabled) |
-| Excluded Course Categories | Multi-select list of all course categories. Courses in selected categories — and all their sub-categories — are excluded from all reminders. Leave blank to exclude no categories. | None |
+| Excluded Course Categories | Searchable multi-select dropdown listing all course categories. Type to filter, click to add; each selected category appears as a removable chip. Courses in selected categories — and all their sub-categories — are excluded from all reminders. Leave blank to exclude no categories. | None |
 
 ### Manager Escalation
 
