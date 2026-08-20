@@ -9,7 +9,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 ## Requirements
 
-- Moodle 4.4 – 5.0
+- Moodle 4.4 – 5.2
 - Course completion tracking enabled on target courses
 - Custom user profile fields (required for Manager Escalation only):
   - `reporting_manager_email` — manager's email address
@@ -18,7 +18,11 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 
 ## Installation
 
-1. Copy the `course_reminder` folder into `local/` within your Moodle installation.
+1. Copy the `course_reminder` folder into the `local/` plugin directory of your Moodle installation:
+   - **Moodle 4.4 and 5.0** — `local/course_reminder/`
+   - **Moodle 5.1 and 5.2** — `public/local/course_reminder/` (5.1 moved the Moodle codebase under `public/`)
+
+   If in doubt, use the `local/` directory that sits alongside `lib/` and `admin/`.
 2. Visit **Site administration > Notifications** to trigger the plugin installation (creates the `local_course_reminder_log` database table).
 3. Configure the plugin under **Site administration > Plugins > Local plugins > Course Escalation Reminder**.
 
@@ -30,7 +34,7 @@ A Moodle local plugin that sends automated email reminders when enrolled courses
 |---|---|---|
 | Enable Plugin | Master switch — disables all features when off | Off |
 | Processing Start Date | HTML5 date picker (range: 2 years back to 1 year forward). Only enrolments created/started on or after the selected date are processed. Leave blank to process all enrolments regardless of age. | Blank (disabled) |
-| Excluded Course Categories | Multi-select list of all course categories. Courses in selected categories — and all their sub-categories — are excluded from all reminders. Leave blank to exclude no categories. | None |
+| Excluded Course Categories | Searchable multi-select dropdown listing all course categories. Type to filter, click to add; each selected category appears as a removable chip. Courses in selected categories — and all their sub-categories — are excluded from all reminders. Leave blank to exclude no categories. | None |
 
 ### Manager Escalation
 

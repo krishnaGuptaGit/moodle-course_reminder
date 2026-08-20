@@ -46,8 +46,9 @@ if ($hassiteconfig) {
     ));
 
     // Excluded course categories — courses in selected categories (and their sub-categories) are never reminded.
+    // Rendered as a searchable multi-select dropdown; the stored value is still a comma-separated ID list.
     $categoryoptions = \core_course_category::make_categories_list();
-    $settings->add(new admin_setting_configmultiselect(
+    $settings->add(new \local_course_reminder\admin\admin_setting_configmultiselect_autocomplete(
         'local_course_reminder/excluded_categoryids',
         get_string('excluded_categoryids', 'local_course_reminder'),
         get_string('excluded_categoryids_desc', 'local_course_reminder'),
